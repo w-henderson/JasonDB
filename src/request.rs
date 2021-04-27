@@ -188,6 +188,8 @@ pub fn execute(request: Request, db_ref: &Arc<RwLock<Database>>) -> String {
             let db = db_ref.read();
             let collection_option = (*db).collection(collection);
             if let Some(coll) = collection_option {
+                if coll.list().len() == 0 { return r#"{"status": "success", "data": []}"#.to_string() };
+
                 let mut json = coll
                     .list()
                     .iter()
