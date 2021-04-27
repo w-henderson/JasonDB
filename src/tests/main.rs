@@ -9,7 +9,7 @@ fn create_save_load() {
     // Create a database and fill it with example data
     let mut db = Database::new("test");
     db.create_collection("users").unwrap();
-    let users = db.collection("users").unwrap();
+    let users = db.collection_mut("users").unwrap();
     users.set("CoolTomato", r#"{"name": "William Henderson"}"#.to_string());
     users.set("Chrome599", r#"{"name": "Frankie Lambert"}"#.to_string());
 

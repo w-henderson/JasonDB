@@ -88,7 +88,7 @@ pub fn load(filename: &str) -> Database {
 
                 // Add the data to the database
                 database
-                    .collection(&name[5..])
+                    .collection_mut(&name[5..])
                     .unwrap()
                     .set(&index.name, data.to_string());
             }

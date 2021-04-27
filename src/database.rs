@@ -39,17 +39,17 @@ pub struct Document {
 }
 
 #[derive(Debug)]
-pub struct CreationError;
+pub struct CollectionError;
 
-impl Display for CreationError {
+impl Display for CollectionError {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "The collection could not be created")
+        write!(f, "The collection could not be created/deleted")
     }
 }
 
-impl Error for CreationError {
+impl Error for CollectionError {
     fn description(&self) -> &str {
-        "The collection could not be created"
+        "The collection could not be created/deleted"
     }
 }
 
@@ -68,24 +68,41 @@ impl Database {
         }
     }
 
+    /// Returns a reference to the named collection if it exists, or `None` otherwise.
+    /// Has a time complexity of O(n) where n is the number of collections.
+    pub fn collection(&self, name: &str) -> Option<&Collection> {
+        self.collections.iter().find(|x| x.name == name)
+    }
+
     /// Returns a mutable reference to the named collection if it exists, or `None` otherwise.
     /// Has a time complexity of O(n) where n is the number of collections.
-    pub fn collection(&mut self, name: &str) -> Option<&mut Collection> {
+    pub fn collection_mut(&mut self, name: &str) -> Option<&mut Collection> {
         self.collections.iter_mut().find(|x| x.name == name)
     }
 
     /// Creates a new collection in the database with the given name.
     /// Does not allocate memory for the documents until one is created.
-    /// If a collection with the same name already exists, throws `CreationError`.
-    pub fn create_collection(&mut self, name: &str) -> Result<(), CreationError> {
+    /// If a collection with the same name already exists, throws `CollectionError`.
+    pub fn create_collection(&mut self, name: &str) -> Result<(), CollectionError> {
         if let Some(_) = self.collections.iter().position(|x| x.name == name) {
-            Err(CreationError)
+            Err(CollectionError)
         } else {
             self.collections.push(Collection {
                 name: name.to_string(),
                 documents: Vec::new(),
             });
             Ok(())
+        }
+    }
+
+    /// Deletes a collection from the database with the given name.
+    /// If the collection does not exist, throws `CollectionError`.
+    pub fn delete_collection(&mut self, name: &str) -> Result<(), CollectionError> {
+        if let Some(collection_index) = self.collections.iter().position(|x| x.name == name) {
+            self.collections.remove(collection_index);
+            Ok(())
+        } else {
+            Err(CollectionError)
         }
     }
 
