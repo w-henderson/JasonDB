@@ -188,12 +188,15 @@ pub fn execute(request: Request, db_ref: &Arc<RwLock<Database>>) -> String {
             let db = db_ref.read();
             let collection_option = (*db).collection(collection);
             if let Some(coll) = collection_option {
-                let json = coll
+                let mut json = coll
                     .list()
                     .iter()
-                    .fold("[".to_string(), |acc, doc| acc + &doc.json + ", ")
-                    + "]";
-                format!("{{\"status\": \"success\", data: {}}}", json)
+                    .fold("[".to_string(), |acc, doc| 
+                        acc + "{\"id\": \"" + &doc.id + "\", \"data\": " + &doc.json + "}, ");
+                json.drain(json.len() - 2..);
+                json += "]";
+
+                format!("{{\"status\": \"success\", \"data\": {}}}", json)
             } else {
                 r#"{"status": "error", "message": "Collection not found"}"#.to_string()
             }
