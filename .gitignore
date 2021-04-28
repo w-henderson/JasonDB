@@ -2,3 +2,7 @@
 
 # database files
 *.jdb
+
+# security files
+.env
+keys/
