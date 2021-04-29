@@ -1,4 +1,5 @@
 #![allow(dead_code)]
+use serde_json::{from_str, Value};
 use std::{error::Error, fmt::Display};
 
 /// Struct representing the database as a whole.
@@ -118,25 +119,47 @@ impl Database {
 }
 
 impl Collection {
+    /// Gets a document from the collection with the given ID.
+    /// If no document exists, returns `None`.
     pub fn get(&self, id: &str) -> Option<&Document> {
         self.documents.iter().find(|x| x.id == id)
     }
 
-    pub fn set(&mut self, id: &str, value: String) {
-        if let Some(index) = self.documents.iter().position(|x| x.id == id) {
-            self.documents.remove(index);
-        }
+    /// Sets a document to the given value.
+    /// If the JSON is invalid, returns `false`.
+    /// If the document was successfully set, returns `true`.
+    /// If the document already exists, it is overwritten.
+    pub fn set(&mut self, id: &str, value: String) -> bool {
+        let new_document = Document::new(id.to_string(), value);
 
-        self.documents.push(Document::new(id.to_string(), value));
+        if let Some(document) = new_document {
+            if let Some(index) = self.documents.iter().position(|x| x.id == id) {
+                self.documents.remove(index);
+            }
+
+            self.documents.push(document);
+
+            true
+        } else {
+            false
+        }
     }
 
+    /// Lists the documents in the collection.
     pub fn list(&self) -> &Vec<Document> {
         &self.documents
     }
 }
 
 impl Document {
-    fn new(id: String, json: String) -> Self {
-        Self { id, json }
+    /// Creates a new document object.
+    /// If the JSON value is invalid, returns `None`.
+    pub fn new(id: String, json: String) -> Option<Self> {
+        let valid = from_str::<Value>(&json).is_ok();
+        if valid {
+            Some(Self { id, json })
+        } else {
+            None
+        }
     }
 }

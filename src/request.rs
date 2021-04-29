@@ -174,8 +174,11 @@ pub fn execute(request: Request, db_ref: &Arc<RwLock<Database>>) -> String {
             let mut db = db_ref.write();
             let collection_option = (*db).collection_mut(collection);
             if let Some(coll) = collection_option {
-                coll.set(document, value);
-                r#"{"status": "success"}"#.to_string()
+                if coll.set(document, value) {
+                    r#"{"status": "success"}"#.to_string()
+                } else {
+                    r#"{"status": "error", "message": "Invalid JSON"}"#.to_string()
+                }
             } else {
                 r#"{"status": "error", "message": "Collection not found"}"#.to_string()
             }
