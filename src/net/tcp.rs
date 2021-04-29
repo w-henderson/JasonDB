@@ -29,7 +29,7 @@ pub async fn handler(listener: TcpListener, db: &Arc<RwLock<Database>>) {
                                 let response = request::execute(request, &db_ref);
 
                                 // Send the response
-                                lines.send(response).await.unwrap();
+                                lines.send(response.to_json()).await.unwrap();
                             }
                             Err(_) => (),
                         }

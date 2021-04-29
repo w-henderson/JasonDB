@@ -60,7 +60,7 @@ pub async fn handler(server: WsServer<TlsAcceptor, TcpListener>, db: &Arc<RwLock
                         let response = request::execute(request, &db_ref);
 
                         // Sends the response
-                        client.send_message(&OwnedMessage::Text(response)).unwrap();
+                        client.send_message(&OwnedMessage::Text(response.to_json())).unwrap();
                     }
 
                     OwnedMessage::Close(_) => {

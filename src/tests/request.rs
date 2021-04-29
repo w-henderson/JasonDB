@@ -39,7 +39,9 @@ fn test_successful_get() {
 
     // Attempt to execute the command
     let response = request::execute(request, &database);
-    let expected_response = r#"{"status": "success", "data": {"name": "William Henderson"}}"#;
+    let expected_response = request::Response::Success {
+        data: Some(r#"{"name": "William Henderson"}"#.to_string()),
+    };
 
     // Assert that the response was correct
     assert_eq!(response, expected_response);
@@ -63,7 +65,7 @@ fn test_successful_set() {
 
     // Attempt to execute the command
     let response = request::execute(request, &database);
-    let expected_response = r#"{"status": "success"}"#;
+    let expected_response = request::Response::Success { data: None };
 
     // Assert that the response was correct
     assert_eq!(response, expected_response);
@@ -95,7 +97,7 @@ fn test_successful_create() {
 
     // Attempt to execute the command
     let response = request::execute(request, &database);
-    let expected_response = r#"{"status": "success"}"#;
+    let expected_response = request::Response::Success { data: None };
 
     // Assert that the response was correct
     assert_eq!(response, expected_response);
@@ -122,7 +124,11 @@ fn test_successful_list() {
 
     // Attempt to execute the command
     let response = request::execute(request, &database);
-    let expected_response = r#"{"status": "success", "data": [{"id": "CoolTomato", "data": {"name": "William Henderson"}}, {"id": "Chrome599", "data": {"name": "Frankie Lambert"}}]}"#;
+    let expected_response = request::Response::Success {
+        data: Some(
+            r#"[{"id": "CoolTomato", "data": {"name": "William Henderson"}}, {"id": "Chrome599", "data": {"name": "Frankie Lambert"}}]"#.to_string(),
+        ),
+    };
 
     // Assert that the response was correct
     assert_eq!(response, expected_response);
@@ -144,7 +150,7 @@ fn test_successful_delete() {
 
     // Attempt to execute the command
     let response = request::execute(request, &database);
-    let expected_response = r#"{"status": "success"}"#;
+    let expected_response = request::Response::Success { data: None };
 
     // Assert that the response was correct
     assert_eq!(response, expected_response);

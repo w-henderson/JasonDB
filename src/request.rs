@@ -29,6 +29,46 @@ pub enum Request<'a> {
     },
 }
 
+/// Represents a response from the server.
+#[derive(Eq, PartialEq, Debug)]
+pub enum Response {
+    Success { data: Option<String> },
+    Error { message: String },
+}
+
+impl Response {
+    /// Create a successful response object.
+    pub fn success(data: Option<String>) -> Self {
+        Self::Success { data }
+    }
+
+    /// Create an error response object.
+    pub fn error(message: &str) -> Self {
+        Self::Error {
+            message: message.to_string(),
+        }
+    }
+
+    /// Convert the response into a JSON string.
+    pub fn to_json(&self) -> String {
+        match self {
+            Response::Success { data } => {
+                if let Some(data) = data {
+                    format!("{{\"status\": \"success\", \"data\": {}}}", data)
+                } else {
+                    r#"{"status": "success"}"#.to_string()
+                }
+            }
+            Response::Error { message } => {
+                format!(
+                    "{{\"status\": \"error\", \"message\": \"{}\"}}",
+                    message.replace("\"", "\\\"")
+                )
+            }
+        }
+    }
+}
+
 #[derive(Eq, PartialEq, Debug)]
 pub enum Condition<'a> {
     Eq { key: &'a str, value: &'a str },
@@ -43,6 +83,14 @@ impl Condition<'_> {
     }
 }
 
+/// Parses a request string into a `Request` object.
+/// For example, the request string "GET CoolTomato FROM users" would be parsed into:
+/// ```rs
+/// Request::Get {
+///     collection: "users",
+///     document: "CoolTomato"
+/// }
+/// ```
 pub fn parse(string: &str) -> Request {
     let parsed_string: Vec<&str> = string.split_ascii_whitespace().collect();
     let len = parsed_string.len();
@@ -136,15 +184,17 @@ pub fn parse(string: &str) -> Request {
     }
 }
 
-pub fn execute(request: Request, db_ref: &Arc<RwLock<Database>>) -> String {
+/// Executes a request object and returns a `Response`.
+/// This is either `Response::Success` or `Response::Error`.
+pub fn execute(request: Request, db_ref: &Arc<RwLock<Database>>) -> Response {
     match request {
         Request::Create { collection } => {
             let mut db = db_ref.write();
             let result = (*db).create_collection(collection);
             if result.is_ok() {
-                r#"{"status": "success"}"#.to_string()
+                Response::success(None)
             } else {
-                r#"{"status": "error", "message": "Collection already exists"}"#.to_string()
+                Response::error("Collection already exists")
             }
         }
 
@@ -157,12 +207,12 @@ pub fn execute(request: Request, db_ref: &Arc<RwLock<Database>>) -> String {
             if let Some(coll) = collection_option {
                 let document_option = coll.get(document);
                 if let Some(doc) = document_option {
-                    format!("{{\"status\": \"success\", \"data\": {}}}", doc.json)
+                    Response::success(Some(doc.json.clone()))
                 } else {
-                    r#"{"status": "error", "message": "Document not found"}"#.to_string()
+                    Response::error("Document not found")
                 }
             } else {
-                r#"{"status": "error", "message": "Collection not found"}"#.to_string()
+                Response::error("Collection not found")
             }
         }
 
@@ -175,12 +225,12 @@ pub fn execute(request: Request, db_ref: &Arc<RwLock<Database>>) -> String {
             let collection_option = (*db).collection_mut(collection);
             if let Some(coll) = collection_option {
                 if coll.set(document, value) {
-                    r#"{"status": "success"}"#.to_string()
+                    Response::success(None)
                 } else {
-                    r#"{"status": "error", "message": "Invalid JSON"}"#.to_string()
+                    Response::error("Invalid JSON")
                 }
             } else {
-                r#"{"status": "error", "message": "Collection not found"}"#.to_string()
+                Response::error("Collection not found")
             }
         }
 
@@ -191,7 +241,7 @@ pub fn execute(request: Request, db_ref: &Arc<RwLock<Database>>) -> String {
             let db = db_ref.read();
             let collection_option = (*db).collection(collection);
             if let Some(coll) = collection_option {
-                if coll.list().len() == 0 { return r#"{"status": "success", "data": []}"#.to_string() };
+                if coll.list().len() == 0 { return Response::success(Some("[]".to_string())) };
 
                 let mut json = coll
                     .list()
@@ -201,9 +251,9 @@ pub fn execute(request: Request, db_ref: &Arc<RwLock<Database>>) -> String {
                 json.drain(json.len() - 2..);
                 json += "]";
 
-                format!("{{\"status\": \"success\", \"data\": {}}}", json)
+                Response::success(Some(json))
             } else {
-                r#"{"status": "error", "message": "Collection not found"}"#.to_string()
+                Response::error("Collection not found")
             }
         }
 
@@ -211,14 +261,14 @@ pub fn execute(request: Request, db_ref: &Arc<RwLock<Database>>) -> String {
             let mut db = db_ref.write();
             let result = (*db).delete_collection(collection);
             if result.is_ok() {
-                r#"{"status": "success"}"#.to_string()
+                Response::success(None)
             } else {
-                r#"{"status": "error", "message": "Collection not found"}"#.to_string()
+                Response::error("Collection not found")
             }
         }
 
         Request::Invalid { error } => {
-            format!("{{\"status\": \"error\", \"message\": \"{}\"}}", error)
+            Response::error(error)
         }
     }
 }
