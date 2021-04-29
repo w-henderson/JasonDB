@@ -192,6 +192,7 @@ pub fn execute(request: Request, db_ref: &Arc<RwLock<Database>>) -> Response {
             let mut db = db_ref.write();
             let result = (*db).create_collection(collection);
             if result.is_ok() {
+                db.increment_writes();
                 Response::success(None)
             } else {
                 Response::error("Collection already exists")
@@ -225,6 +226,7 @@ pub fn execute(request: Request, db_ref: &Arc<RwLock<Database>>) -> Response {
             let collection_option = (*db).collection_mut(collection);
             if let Some(coll) = collection_option {
                 if coll.set(document, value) {
+                    db.increment_writes();
                     Response::success(None)
                 } else {
                     Response::error("Invalid JSON")
@@ -261,6 +263,7 @@ pub fn execute(request: Request, db_ref: &Arc<RwLock<Database>>) -> Response {
             let mut db = db_ref.write();
             let result = (*db).delete_collection(collection);
             if result.is_ok() {
+                db.increment_writes();
                 Response::success(None)
             } else {
                 Response::error("Collection not found")

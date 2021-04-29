@@ -14,7 +14,7 @@ fn create_save_load() {
     users.set("Chrome599", r#"{"name": "Frankie Lambert"}"#.to_string());
 
     // Save the database using ISAM
-    isam::save(&db);
+    isam::save("test", &db);
 
     // Load the database back again using ISAM
     let new_db = isam::load("test");

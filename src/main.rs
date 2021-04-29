@@ -23,6 +23,7 @@ async fn main() {
     let ws_socket = Server::bind_secure("127.0.0.1:1338", tls).unwrap();
     let tcp_db_ref = db.clone();
     let ws_db_ref = db.clone();
+    let isam_db_ref = db.clone();
 
     // Create a thread for each type of connection
     tokio::spawn(async move {
@@ -30,6 +31,11 @@ async fn main() {
     });
     tokio::spawn(async move {
         net::ws::handler(ws_socket, &ws_db_ref).await;
+    });
+
+    // Create a thread to asynchronously mirror the database to disk
+    tokio::spawn(async move {
+        isam::mirror_handler(isam_db_ref, "database").await;
     });
 
     // Idles the main thread

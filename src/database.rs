@@ -15,6 +15,7 @@ use std::{error::Error, fmt::Display};
 pub struct Database {
     name: String,
     collections: Vec<Collection>,
+    writes: u64,
 }
 
 /// Struct representing a collection in the database.
@@ -66,6 +67,7 @@ impl Database {
         Self {
             collections: Vec::new(),
             name: name.to_string(),
+            writes: 0,
         }
     }
 
@@ -115,6 +117,16 @@ impl Database {
     /// Returns a reference to the internal name of the database.
     pub fn get_name(&self) -> &str {
         &self.name
+    }
+
+    /// Returns a reference to the number of writes on the database.
+    pub fn get_writes(&self) -> &u64 {
+        &self.writes
+    }
+
+    /// Increments the number of writes on the database by one.
+    pub fn increment_writes(&mut self) {
+        self.writes += 1;
     }
 }
 

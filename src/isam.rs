@@ -1,9 +1,12 @@
 #![allow(dead_code)]
 use crate::database::Database;
+use parking_lot::RwLock;
 use std::{
     convert::TryInto,
     fs::File,
     io::{Read, Seek, SeekFrom},
+    sync::Arc,
+    time::Duration,
 };
 use tar::{Archive, Builder, Header};
 
@@ -103,17 +106,17 @@ pub fn load(filename: &str) -> Database {
 }
 
 /// Saves the given database's contents to the disk using ISAM.
-/// Automatically generates a filename based on the name of the database.
+/// Uses the specified filename.
 ///
 /// ## Example:
 /// ```rs
 /// let mut db = Database::new("myDatabase");
 /// db.create_collection("users");
 /// db.collection("users").set("CoolTomato", r#"{"name": "William Henderson"}"#);
-/// isam::save(&db);
+/// isam::save("myDatabase", &db);
 /// ```
-pub fn save(database: &Database) {
-    let file = File::create(format!("{}.jdb", database.get_name())).unwrap();
+pub fn save(filename: &str, database: &Database) {
+    let file = File::create(format!("{}.jdb", filename)).unwrap();
     let mut archive = Builder::new(file);
 
     for collection in database.get_collections() {
@@ -161,4 +164,23 @@ pub fn save(database: &Database) {
     }
 
     archive.finish().unwrap();
+}
+
+/// Handles mirroring the database to the disk.
+/// Updates the disk every 5 seconds if the database has changed.
+pub async fn mirror_handler(database: Arc<RwLock<Database>>, filename: &str) {
+    let mut cached_writes: u64 = 0;
+
+    loop {
+        let db = database.read();
+        let new_writes = db.get_writes();
+
+        if new_writes > &cached_writes {
+            cached_writes = *new_writes;
+            save(filename, &*db);
+        }
+
+        drop(db);
+        std::thread::park_timeout(Duration::from_secs(5));
+    }
 }
