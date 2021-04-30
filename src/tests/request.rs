@@ -13,8 +13,14 @@ fn init_database() -> Arc<RwLock<Database>> {
 
     // Add some example data to the database
     let users = (*db).collection_mut("users").unwrap();
-    users.set("CoolTomato", r#"{"name": "William Henderson"}"#.to_string());
-    users.set("Chrome599", r#"{"name": "Frankie Lambert"}"#.to_string());
+    users.set(
+        "CoolTomato",
+        r#"{"name": "William Henderson", "height": 180}"#.to_string(),
+    );
+    users.set(
+        "Chrome599",
+        r#"{"name": "Frankie Lambert", "height": 170}"#.to_string(),
+    );
 
     // Drop the reference to the database
     drop(db);
@@ -40,7 +46,7 @@ fn test_successful_get() {
     // Attempt to execute the command
     let response = request::execute(request, &database);
     let expected_response = request::Response::Success {
-        data: Some(r#"{"name": "William Henderson"}"#.to_string()),
+        data: Some(r#"{"name": "William Henderson", "height": 180}"#.to_string()),
     };
 
     // Assert that the response was correct
@@ -52,12 +58,12 @@ fn test_successful_set() {
     let database = init_database();
 
     // Create and attempt to parse the command
-    let command = r#"SET flauntingspade4 FROM users TO {"name": "Elliot Whybrow"}"#;
+    let command = r#"SET flauntingspade4 FROM users TO {"name": "Elliot Whybrow", "height": 185}"#;
     let request = request::parse(command);
     let expected_request = request::Request::Set {
         collection: "users",
         document: "flauntingspade4",
-        value: r#"{"name": "Elliot Whybrow"}"#.to_string(),
+        value: r#"{"name": "Elliot Whybrow", "height": 185}"#.to_string(),
     };
 
     // Assert that the command was parsed correctly
@@ -78,7 +84,7 @@ fn test_successful_set() {
         .get("flauntingspade4")
         .unwrap()
         .json;
-    assert_eq!(new_data, r#"{"name": "Elliot Whybrow"}"#);
+    assert_eq!(new_data, r#"{"name": "Elliot Whybrow", "height": 185}"#);
 }
 
 #[test]
@@ -126,7 +132,7 @@ fn test_successful_list() {
     let response = request::execute(request, &database);
     let expected_response = request::Response::Success {
         data: Some(
-            r#"[{"id": "CoolTomato", "data": {"name": "William Henderson"}}, {"id": "Chrome599", "data": {"name": "Frankie Lambert"}}]"#.to_string(),
+            r#"[{"id": "CoolTomato", "data": {"name": "William Henderson", "height": 180}}, {"id": "Chrome599", "data": {"name": "Frankie Lambert", "height": 170}}]"#.to_string(),
         ),
     };
 
@@ -158,4 +164,35 @@ fn test_successful_delete() {
     // Assert that the collection was successfully deleted
     let db = database.read();
     assert!((*db).collection("users").is_none());
+}
+
+#[test]
+fn test_successful_query() {
+    let database = init_database();
+
+    // Create and attempt to parse the command
+    let command = "LIST users WHERE height GT 178";
+    let request = request::parse(command);
+    let expected_request = request::Request::List {
+        collection: "users",
+        condition: Some(request::Condition::Gt {
+            key: "height".to_string(),
+            value: "178".to_string(),
+        }),
+    };
+
+    // Assert that the command was parsed correctly
+    assert_eq!(request, expected_request);
+
+    // Attempt to execute the command
+    let response = request::execute(request, &database);
+    let expected_response = request::Response::Success {
+        data: Some(
+            r#"[{"id": "CoolTomato", "data": {"name": "William Henderson", "height": 180}}]"#
+                .to_string(),
+        ),
+    };
+
+    // Assert that the response was correct
+    assert_eq!(response, expected_response);
 }

@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 use crate::Database;
 use parking_lot::RwLock;
+use serde_json::Value;
 use std::sync::Arc;
 
 #[derive(Eq, PartialEq, Debug)]
@@ -19,7 +20,7 @@ pub enum Request<'a> {
     },
     List {
         collection: &'a str,
-        condition: Option<Condition<'a>>,
+        condition: Option<Condition>,
     },
     Delete {
         collection: &'a str,
@@ -70,16 +71,33 @@ impl Response {
 }
 
 #[derive(Eq, PartialEq, Debug)]
-pub enum Condition<'a> {
-    Eq { key: &'a str, value: &'a str },
-    Gt { key: &'a str, value: &'a str },
-    Lt { key: &'a str, value: &'a str },
+pub enum Condition {
+    Eq { key: String, value: String },
+    Gt { key: String, value: String },
+    Lt { key: String, value: String },
 }
 
-impl Condition<'_> {
-    pub fn parse(_string: &[&str]) -> Option<Self> {
-        // TODO: IMPLEMENT
-        Some(Self::Eq { key: "", value: "" })
+impl Condition {
+    pub fn parse(string: &[&str]) -> Option<Self> {
+        if string.len() != 3 {
+            None
+        } else {
+            match string[1] {
+                "EQ" => Some(Self::Eq {
+                    key: string[0].to_string(),
+                    value: string[2].to_string(),
+                }),
+                "GT" => Some(Self::Gt {
+                    key: string[0].to_string(),
+                    value: string[2].to_string(),
+                }),
+                "LT" => Some(Self::Lt {
+                    key: string[0].to_string(),
+                    value: string[2].to_string(),
+                }),
+                _ => None,
+            }
+        }
     }
 }
 
@@ -238,22 +256,91 @@ pub fn execute(request: Request, db_ref: &Arc<RwLock<Database>>) -> Response {
 
         Request::List {
             collection,
-            .. // TODO: IMPLEMENT CONDITION
+            condition,
         } => {
             let db = db_ref.read();
             let collection_option = (*db).collection(collection);
             if let Some(coll) = collection_option {
-                if coll.list().len() == 0 { return Response::success(Some("[]".to_string())) };
+                if coll.list().len() == 0 {
+                    return Response::success(Some("[]".to_string()));
+                };
 
-                let mut json = coll
-                    .list()
-                    .iter()
-                    .fold("[".to_string(), |acc, doc| 
-                        acc + "{\"id\": \"" + &doc.id + "\", \"data\": " + &doc.json + "}, ");
-                json.drain(json.len() - 2..);
-                json += "]";
+                if let Some(condition) = condition {
+                    let mut json = coll
+                        .list()
+                        .iter()
+                        .filter(|item| {
+                            let parsed_item: Value = serde_json::from_str(&item.json).unwrap();
+                            match &condition {
+                                Condition::Eq { key, value } => {
+                                    if let Some(actual_value) = parsed_item.get(&key) {
+                                        if let Some(string_value) = actual_value.as_str() {
+                                            string_value == value
+                                        } else if let Some(numeric_value) = actual_value.as_f64() {
+                                            if let Ok(target_value) = value.parse::<f64>() {
+                                                target_value == numeric_value
+                                            } else {
+                                                false
+                                            }
+                                        } else {
+                                            false
+                                        }
+                                    } else {
+                                        false
+                                    }
+                                }
+                                Condition::Gt { key, value } => {
+                                    if let Some(actual_value) = parsed_item.get(&key) {
+                                        if let Some(numeric_value) = actual_value.as_f64() {
+                                            if let Ok(specified_value) = value.parse::<f64>() {
+                                                numeric_value > specified_value
+                                            } else {
+                                                false
+                                            }
+                                        } else {
+                                            false
+                                        }
+                                    } else {
+                                        false
+                                    }
+                                }
+                                Condition::Lt { key, value } => {
+                                    if let Some(actual_value) = parsed_item.get(&key) {
+                                        if let Some(numeric_value) = actual_value.as_f64() {
+                                            if let Ok(specified_value) = value.parse::<f64>() {
+                                                numeric_value < specified_value
+                                            } else {
+                                                false
+                                            }
+                                        } else {
+                                            false
+                                        }
+                                    } else {
+                                        false
+                                    }
+                                }
+                            }
+                        })
+                        .fold("[".to_string(), |acc, doc| {
+                            acc + "{\"id\": \"" + &doc.id + "\", \"data\": " + &doc.json + "}, "
+                        });
 
-                Response::success(Some(json))
+                    if json == "[" {
+                        return Response::success(Some("[]".to_string()));
+                    };
+                    json.drain(json.len() - 2..);
+                    json += "]";
+
+                    Response::success(Some(json))
+                } else {
+                    let mut json = coll.list().iter().fold("[".to_string(), |acc, doc| {
+                        acc + "{\"id\": \"" + &doc.id + "\", \"data\": " + &doc.json + "}, "
+                    });
+                    json.drain(json.len() - 2..);
+                    json += "]";
+
+                    Response::success(Some(json))
+                }
             } else {
                 Response::error("Collection not found")
             }
@@ -270,8 +357,6 @@ pub fn execute(request: Request, db_ref: &Arc<RwLock<Database>>) -> Response {
             }
         }
 
-        Request::Invalid { error } => {
-            Response::error(error)
-        }
+        Request::Invalid { error } => Response::error(error),
     }
 }
