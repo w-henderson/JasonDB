@@ -1,4 +1,7 @@
-/target
+# build files and dependencies
+target/
+dist/
+node_modules/
 
 # database files
 *.jdb
