@@ -55,12 +55,38 @@ pub async fn handler(server: WsServer<TlsAcceptor, TcpListener>, db: &Arc<RwLock
 
                 match msg {
                     OwnedMessage::Text(text) => {
-                        // Parses and executes the request
-                        let request = request::parse(&text);
-                        let response = request::execute(request, &db_ref);
+                        // If the message is in the format `ID <some ID code here> <request>`,
+                        // then we echo the ID back with the response so it can be tracked client-side.
+                        if &text[0..3] != "ID " {
+                            // Parses and executes the request
+                            let request = request::parse(&text);
+                            let response = request::execute(request, &db_ref);
+                            let json_message = OwnedMessage::Text(response.to_json());
 
-                        // Sends the response
-                        client.send_message(&OwnedMessage::Text(response.to_json())).unwrap();
+                            // Sends the response
+                            client.send_message(&json_message).unwrap();
+                        } else {
+                            if let Some(request_start) = &text[3..].find(" ") {
+                                // Parses and executes the request
+                                let request = request::parse(&text[request_start + 4..]);
+                                let response = request::execute(request, &db_ref);
+                                let json_message = OwnedMessage::Text(format!(
+                                    "ID {} {}",
+                                    &text[3..*request_start + 3],
+                                    response.to_json()
+                                ));
+
+                                // Sends the response
+                                client.send_message(&json_message).unwrap();
+                            } else {
+                                client
+                                    .send_message(&OwnedMessage::Text(
+                                        r#"{"status": "error", "message": "Malformed ID"}"#
+                                            .to_string(),
+                                    ))
+                                    .unwrap();
+                            }
+                        }
                     }
 
                     OwnedMessage::Close(_) => {
