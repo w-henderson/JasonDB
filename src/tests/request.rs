@@ -196,3 +196,34 @@ fn test_successful_query() {
     // Assert that the response was correct
     assert_eq!(response, expected_response);
 }
+
+#[test]
+fn test_exists() {
+    let database = init_database();
+
+    // Create and attempt to parse the commands
+    let command_1 = "EXISTS users";
+    let command_2 = "EXISTS thisCollectionDoesNotExist";
+    let request_1 = request::parse(command_1);
+    let request_2 = request::parse(command_2);
+    let expected_request_1 = request::Request::Exists {
+        collection: "users",
+    };
+
+    // Assert that the command was parsed correctly
+    assert_eq!(request_1, expected_request_1);
+
+    // Attempt to execute the commands
+    let response_1 = request::execute(request_1, &database);
+    let response_2 = request::execute(request_2, &database);
+    let expected_response_1 = request::Response::Success {
+        data: Some("true".to_string()),
+    };
+    let expected_response_2 = request::Response::Success {
+        data: Some("false".to_string()),
+    };
+
+    // Assert that the responses were correct
+    assert_eq!(response_1, expected_response_1);
+    assert_eq!(response_2, expected_response_2);
+}

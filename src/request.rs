@@ -25,6 +25,9 @@ pub enum Request<'a> {
     Delete {
         collection: &'a str,
     },
+    Exists {
+        collection: &'a str,
+    },
     Invalid {
         error: &'a str,
     },
@@ -196,6 +199,18 @@ pub fn parse(string: &str) -> Request {
             }
         }
 
+        "EXISTS" => {
+            if len == 2 {
+                Request::Exists {
+                    collection: parsed_string[1],
+                }
+            } else {
+                Request::Invalid {
+                    error: "EXISTS command is formatted as 'EXISTS <collection>'",
+                }
+            }
+        }
+
         _ => Request::Invalid {
             error: "Unknown command",
         },
@@ -354,6 +369,16 @@ pub fn execute(request: Request, db_ref: &Arc<RwLock<Database>>) -> Response {
                 Response::success(None)
             } else {
                 Response::error("Collection not found")
+            }
+        }
+
+        Request::Exists { collection } => {
+            let db = db_ref.read();
+            let collection = (*db).collection(collection);
+            if collection.is_some() {
+                Response::success(Some("true".to_string()))
+            } else {
+                Response::success(Some("false".to_string()))
             }
         }
 
