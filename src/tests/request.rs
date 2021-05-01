@@ -132,7 +132,7 @@ fn test_successful_list() {
     let response = request::execute(request, &database);
     let expected_response = request::Response::Success {
         data: Some(
-            r#"[{"id": "CoolTomato", "data": {"name": "William Henderson", "height": 180}}, {"id": "Chrome599", "data": {"name": "Frankie Lambert", "height": 170}}]"#.to_string(),
+            r#"{"CoolTomato": {"name": "William Henderson", "height": 180}, "Chrome599": {"name": "Frankie Lambert", "height": 170}}"#.to_string(),
         ),
     };
 
@@ -141,7 +141,7 @@ fn test_successful_list() {
 }
 
 #[test]
-fn test_successful_delete() {
+fn test_successful_delete_collection() {
     let database = init_database();
 
     // Create and attempt to parse the command
@@ -149,6 +149,7 @@ fn test_successful_delete() {
     let request = request::parse(command);
     let expected_request = request::Request::Delete {
         collection: "users",
+        document: None,
     };
 
     // Assert that the command was parsed correctly
@@ -164,6 +165,37 @@ fn test_successful_delete() {
     // Assert that the collection was successfully deleted
     let db = database.read();
     assert!((*db).collection("users").is_none());
+}
+
+#[test]
+fn test_successful_delete_document() {
+    let database = init_database();
+
+    // Create and attempt to parse the command
+    let command = "DELETE CoolTomato FROM users";
+    let request = request::parse(command);
+    let expected_request = request::Request::Delete {
+        collection: "users",
+        document: Some("CoolTomato".to_string()),
+    };
+
+    // Assert that the command was parsed correctly
+    assert_eq!(request, expected_request);
+
+    // Attempt to execute the command
+    let response = request::execute(request, &database);
+    let expected_response = request::Response::Success { data: None };
+
+    // Assert that the response was correct
+    assert_eq!(response, expected_response);
+
+    // Assert that the document was successfully deleted
+    let db = database.read();
+    assert!((*db)
+        .collection("users")
+        .unwrap()
+        .get("CoolTomato")
+        .is_none());
 }
 
 #[test]
@@ -187,10 +219,7 @@ fn test_successful_query() {
     // Attempt to execute the command
     let response = request::execute(request, &database);
     let expected_response = request::Response::Success {
-        data: Some(
-            r#"[{"id": "CoolTomato", "data": {"name": "William Henderson", "height": 180}}]"#
-                .to_string(),
-        ),
+        data: Some(r#"{"CoolTomato": {"name": "William Henderson", "height": 180}}"#.to_string()),
     };
 
     // Assert that the response was correct

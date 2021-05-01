@@ -157,6 +157,17 @@ impl Collection {
         }
     }
 
+    /// Removes a document from the collection.
+    /// If the document was successfully removed, returns `true`.
+    pub fn remove(&mut self, id: &str) -> bool {
+        if let Some(index) = self.documents.iter().position(|x| x.id == id) {
+            self.documents.remove(index);
+            true
+        } else {
+            false
+        }
+    }
+
     /// Lists the documents in the collection.
     pub fn list(&self) -> &Vec<Document> {
         &self.documents

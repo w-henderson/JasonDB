@@ -24,6 +24,7 @@ pub enum Request<'a> {
     },
     Delete {
         collection: &'a str,
+        document: Option<String>,
     },
     Exists {
         collection: &'a str,
@@ -191,10 +192,22 @@ pub fn parse(string: &str) -> Request {
             if len == 2 {
                 Request::Delete {
                     collection: parsed_string[1],
+                    document: None,
+                }
+            } else if len == 4 {
+                if parsed_string[2] == "FROM" {
+                    Request::Delete {
+                        collection: parsed_string[3],
+                        document: Some(parsed_string[1].to_string()),
+                    }
+                } else {
+                    Request::Invalid {
+                        error: "DELETE command is formatted as 'DELETE <collection>' or 'DELETE <document> FROM <collection>",
+                    }
                 }
             } else {
                 Request::Invalid {
-                    error: "DELETE command is formatted as 'DELETE <collection>'",
+                    error: "DELETE command is formatted as 'DELETE <collection>' or 'DELETE <document> FROM <collection>",
                 }
             }
         }
@@ -277,7 +290,7 @@ pub fn execute(request: Request, db_ref: &Arc<RwLock<Database>>) -> Response {
             let collection_option = (*db).collection(collection);
             if let Some(coll) = collection_option {
                 if coll.list().len() == 0 {
-                    return Response::success(Some("[]".to_string()));
+                    return Response::success(Some("{}".to_string()));
                 };
 
                 if let Some(condition) = condition {
@@ -336,23 +349,23 @@ pub fn execute(request: Request, db_ref: &Arc<RwLock<Database>>) -> Response {
                                 }
                             }
                         })
-                        .fold("[".to_string(), |acc, doc| {
-                            acc + "{\"id\": \"" + &doc.id + "\", \"data\": " + &doc.json + "}, "
+                        .fold("{".to_string(), |acc, doc| {
+                            acc + "\"" + &doc.id + "\": " + &doc.json + ", "
                         });
 
-                    if json == "[" {
-                        return Response::success(Some("[]".to_string()));
+                    if json == "{" {
+                        return Response::success(Some("{}".to_string()));
                     };
                     json.drain(json.len() - 2..);
-                    json += "]";
+                    json += "}";
 
                     Response::success(Some(json))
                 } else {
-                    let mut json = coll.list().iter().fold("[".to_string(), |acc, doc| {
-                        acc + "{\"id\": \"" + &doc.id + "\", \"data\": " + &doc.json + "}, "
+                    let mut json = coll.list().iter().fold("{".to_string(), |acc, doc| {
+                        acc + "\"" + &doc.id + "\": " + &doc.json + ", "
                     });
                     json.drain(json.len() - 2..);
-                    json += "]";
+                    json += "}";
 
                     Response::success(Some(json))
                 }
@@ -361,14 +374,30 @@ pub fn execute(request: Request, db_ref: &Arc<RwLock<Database>>) -> Response {
             }
         }
 
-        Request::Delete { collection } => {
+        Request::Delete {
+            collection,
+            document,
+        } => {
             let mut db = db_ref.write();
-            let result = (*db).delete_collection(collection);
-            if result.is_ok() {
-                db.increment_writes();
-                Response::success(None)
+
+            if let Some(document) = document {
+                if let Some(collection) = (*db).collection_mut(collection) {
+                    if collection.remove(&document) {
+                        db.increment_writes();
+                        Response::success(None)
+                    } else {
+                        Response::error("Document not found")
+                    }
+                } else {
+                    Response::error("Collection not found")
+                }
             } else {
-                Response::error("Collection not found")
+                if (*db).delete_collection(collection).is_ok() {
+                    db.increment_writes();
+                    Response::success(None)
+                } else {
+                    Response::error("Collection not found")
+                }
             }
         }
 
