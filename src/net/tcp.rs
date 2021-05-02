@@ -31,7 +31,14 @@ pub async fn handler(listener: TcpListener, db: &Arc<RwLock<Database>>) {
                                 // Send the response
                                 lines.send(response.to_json()).await.unwrap();
                             }
-                            Err(_) => (),
+                            Err(e) => {
+                                match e {
+                                    tokio_util::codec::LinesCodecError::Io(_) => {
+                                        return;
+                                    }
+                                    _ => (),
+                                }
+                            }
                         }
                     }
                 });
