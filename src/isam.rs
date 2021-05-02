@@ -17,6 +17,17 @@ struct Index {
     length: u64,
 }
 
+#[derive(Debug)]
+struct ISAMError;
+
+impl std::fmt::Display for ISAMError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "An ISAM error occurred")
+    }
+}
+
+impl std::error::Error for ISAMError {}
+
 /// Loads a database from the specified file into memory using ISAM.
 /// The filename should not include the `.jdb` extension.
 /// This includes every document, so for large databases it could take a second.
@@ -24,12 +35,12 @@ struct Index {
 ///
 /// ## Example:
 /// ```rs
-/// let mut db = isam::load("myDatabase");
+/// let mut db = isam::load("myDatabase").unwrap();
 /// ```
-pub fn load(filename: &str) -> Database {
+pub fn load(filename: &str) -> Result<Database, Box<dyn std::error::Error>> {
     // Open the file and load the TAR archive
-    let file = File::open(format!("{}.jdb", filename)).unwrap();
-    let mut raw_file = File::open(format!("{}.jdb", filename)).unwrap();
+    let file = File::open(format!("{}.jdb", filename))?;
+    let mut raw_file = File::open(format!("{}.jdb", filename))?;
     let mut archive = Archive::new(file);
 
     // Initialise the database object
@@ -39,14 +50,18 @@ pub fn load(filename: &str) -> Database {
     let mut indexes: Vec<Index> = Vec::new();
 
     // Iterate over the files in the archive
-    for entry_result in archive.entries().unwrap() {
-        let mut entry = entry_result.unwrap();
-        let path = entry.path().unwrap();
-        let name = path.file_name().unwrap().to_str().unwrap();
+    for entry_result in archive.entries()? {
+        let mut entry = entry_result?;
+        let path = entry.path()?;
+        let name = path
+            .file_name()
+            .ok_or(ISAMError {})?
+            .to_str()
+            .ok_or(ISAMError {})?;
 
         if is_index {
             // If the file is an index file, load the indexes for when reading the corresponding data file
-            database.create_collection(&name[6..]).unwrap(); // removes "INDEX_" prefix from index file
+            database.create_collection(&name[6..])?; // removes "INDEX_" prefix from index file
 
             let mut end_of_file = false;
             while !end_of_file {
@@ -54,8 +69,8 @@ pub fn load(filename: &str) -> Database {
 
                 if let Ok(()) = entry.read_exact(&mut buf) {
                     let mut document_name = String::with_capacity(64);
-                    let pointer = u64::from_be_bytes(buf[64..72].try_into().unwrap());
-                    let length = u64::from_be_bytes(buf[72..80].try_into().unwrap());
+                    let pointer = u64::from_be_bytes(buf[64..72].try_into()?);
+                    let length = u64::from_be_bytes(buf[72..80].try_into()?);
 
                     for ascii_char in &buf[0..64] {
                         if *ascii_char == 0 {
@@ -80,19 +95,15 @@ pub fn load(filename: &str) -> Database {
             let entry_offset = entry.raw_file_position();
             for index in indexes {
                 let mut buf: Vec<u8> = vec![0; index.length as usize];
+                raw_file.seek(SeekFrom::Start(entry_offset + index.start))?;
+                raw_file.read_exact(&mut buf)?;
 
-                raw_file
-                    .seek(SeekFrom::Start(entry_offset + index.start))
-                    .unwrap();
-
-                raw_file.read_exact(&mut buf).unwrap();
-
-                let data = std::str::from_utf8(&buf).unwrap();
+                let data = std::str::from_utf8(&buf)?;
 
                 // Add the data to the database
                 database
                     .collection_mut(&name[5..])
-                    .unwrap()
+                    .ok_or(ISAMError {})?
                     .set(&index.name, data.to_string());
             }
 
@@ -102,7 +113,7 @@ pub fn load(filename: &str) -> Database {
         is_index = !is_index;
     }
 
-    database
+    Ok(database)
 }
 
 /// Saves the given database's contents to the disk using ISAM.

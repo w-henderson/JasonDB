@@ -26,15 +26,20 @@ use websocket::{server::WsServer, OwnedMessage};
 /// ```
 ///
 /// TODO: Implement error handling.
-pub fn init_tls() -> TlsAcceptor {
+#[rustfmt::skip]
+pub fn init_tls(path: &str, key: &str) -> Result<TlsAcceptor, Box<dyn std::error::Error>> {
+    // Attempts to read certificate information from `.env` if not specified
+    let path = if path == "" { var("CERT")? } else { path.to_string() };
+    let key = if key == "" { var("KEY")? } else { key.to_string() };
+
     // Opens and reads the certificate file
-    let mut file = File::open(var("CERT").unwrap()).unwrap();
+    let mut file = File::open(path)?;
     let mut bytes: Vec<u8> = Vec::new();
-    file.read_to_end(&mut bytes).unwrap();
+    file.read_to_end(&mut bytes)?;
 
     // Parse the file into a TLS acceptor
-    let identity = Identity::from_pkcs12(&bytes, &var("KEY").unwrap()).unwrap();
-    TlsAcceptor::new(identity).unwrap()
+    let identity = Identity::from_pkcs12(&bytes, &key)?;
+    Ok(TlsAcceptor::new(identity)?)
 }
 /// Handles WebSocket connections asynchronously.
 /// Creates a new thread for each individual connection, but individual messages are handled synchronously inside that thread.

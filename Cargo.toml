@@ -7,9 +7,9 @@ edition = "2018"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-clap = "2"
+clap = { version = "3.0.0-beta.2", features = ["yaml"] }
 dotenv = "0.15.0"
-futures = { version = "0.3.0", features = ["thread-pool"]}
+futures = { version = "0.3.0", features = ["thread-pool"] }
 native-tls = "0.2.7"
 parking_lot = "0.10.2"
 serde = "1.0"

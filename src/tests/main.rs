@@ -17,7 +17,7 @@ fn create_save_load() {
     isam::save("test", &db);
 
     // Load the database back again using ISAM
-    let new_db = isam::load("test");
+    let new_db = isam::load("test").unwrap();
 
     // Assert that the original in-memory instance is identical to that loaded from disk
     assert_eq!(db, new_db);
