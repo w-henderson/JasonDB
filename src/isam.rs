@@ -5,7 +5,10 @@ use std::{
     convert::TryInto,
     fs::File,
     io::{Read, Seek, SeekFrom},
-    sync::Arc,
+    sync::{
+        atomic::{AtomicU8, Ordering},
+        Arc,
+    },
     time::Duration,
 };
 use tar::{Archive, Builder, Header};
@@ -179,10 +182,15 @@ pub fn save(filename: &str, database: &Database) {
 
 /// Handles mirroring the database to the disk.
 /// Updates the disk every <interval> seconds if the database has changed.
-pub async fn mirror_handler(database: Arc<RwLock<Database>>, filename: &str, interval: u64) {
+pub async fn mirror_handler(
+    database: Arc<RwLock<Database>>,
+    filename: &str,
+    interval: u64,
+    state: Arc<AtomicU8>,
+) {
     let mut cached_writes: u64 = 0;
 
-    loop {
+    while state.load(Ordering::SeqCst) == 0 {
         let db = database.read();
         let new_writes = db.get_writes();
 
@@ -194,4 +202,9 @@ pub async fn mirror_handler(database: Arc<RwLock<Database>>, filename: &str, int
         drop(db);
         std::thread::park_timeout(Duration::from_secs(interval));
     }
+
+    let db = database.read();
+    save(filename, &*db);
+
+    state.store(2, Ordering::SeqCst);
 }

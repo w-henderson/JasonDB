@@ -7,6 +7,7 @@ mod tests;
 
 use database::Database;
 use parking_lot::RwLock;
+use std::sync::atomic::{AtomicU8, Ordering};
 use std::sync::Arc;
 use tokio::net::TcpListener;
 use websocket::sync::Server;
@@ -31,6 +32,10 @@ async fn main() {
                 let db = Arc::new(RwLock::new(loaded_db));
                 let isam_db_ref = db.clone();
 
+                // Initialise a variable to store the state of the application
+                // 0 - running, 1 - stopping, 2 - safe to terminate
+                let application_state = Arc::new(AtomicU8::new(0));
+
                 // Create a thread for each type of connection
                 if !no_tcp {
                     let tcp_socket = TcpListener::bind("127.0.0.1:1337").await.unwrap();
@@ -53,9 +58,30 @@ async fn main() {
                 }
 
                 // Create a thread to asynchronously mirror the database to disk
+                let isam_application_state = application_state.clone();
                 tokio::spawn(async move {
-                    isam::mirror_handler(isam_db_ref, "database", mirror_interval).await;
+                    isam::mirror_handler(
+                        isam_db_ref,
+                        &database,
+                        mirror_interval,
+                        isam_application_state,
+                    )
+                    .await;
                 });
+
+                ctrlc::set_handler(move || {
+                    application_state.store(1, Ordering::SeqCst);
+                    println!("waiting for next save to complete...");
+
+                    // Wait for the state to change to 2 (safe to terminate).
+                    // This change happens in the ISAM thread and can take up to 5 seconds.
+                    while application_state.load(Ordering::SeqCst) == 1 {}
+
+                    // Safely exit the program
+                    println!("saved database.");
+                    std::process::exit(0);
+                })
+                .expect("Couldn't set exit handler");
 
                 // Idles the main thread
                 std::thread::park();

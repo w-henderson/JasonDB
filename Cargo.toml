@@ -8,6 +8,7 @@ edition = "2018"
 
 [dependencies]
 clap = { version = "3.0.0-beta.2", features = ["yaml"] }
+ctrlc = { version = "3.0", features = ["termination"] }
 dotenv = "0.15.0"
 futures = { version = "0.3.0", features = ["thread-pool"] }
 native-tls = "0.2.7"
