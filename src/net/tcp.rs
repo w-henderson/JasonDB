@@ -24,21 +24,32 @@ pub async fn handler(listener: TcpListener, db: &Arc<RwLock<Database>>) {
                     while let Some(result) = lines.next().await {
                         match result {
                             Ok(line) => {
-                                // Parse and execute the request
-                                let request = request::parse(&line);
-                                let response = request::execute(request, &db_ref);
-
-                                // Send the response
-                                lines.send(response.to_json()).await.unwrap();
-                            }
-                            Err(e) => {
-                                match e {
-                                    tokio_util::codec::LinesCodecError::Io(_) => {
-                                        return;
-                                    }
-                                    _ => (),
+                                // Requests can be joined together in one packet with the string "THEN".
+                                // For example, "GET user1 FROM users THEN GET user2 FROM users"
+                                // They should be processed separately but the result returned together.
+                                // The result is joined with the "&" character.
+                                let mut responses: Vec<String> = Vec::new();
+                                for line_part in line.split(" THEN ") {
+                                    // Parse and execute the request
+                                    let request = request::parse(line_part);
+                                    let response = request::execute(request, &db_ref);
+                                    responses.push(response.to_json());
                                 }
+
+                                // Send the response(s)
+                                let response = if responses.len() == 1 {
+                                    responses[0].clone()
+                                } else {
+                                    format!("[{}]", responses.join(","))
+                                };
+                                lines.send(&response).await.unwrap();
                             }
+                            Err(e) => match e {
+                                tokio_util::codec::LinesCodecError::Io(_) => {
+                                    return;
+                                }
+                                _ => (),
+                            },
                         }
                     }
                 });
