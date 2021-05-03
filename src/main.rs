@@ -24,6 +24,7 @@ async fn main() {
             no_ws,
             ws_cert,
             ws_key,
+            mirror_interval,
         } => {
             // Initialise the database to be mutable and thread-safe
             if let Ok(loaded_db) = isam::load(&database) {
@@ -53,7 +54,7 @@ async fn main() {
 
                 // Create a thread to asynchronously mirror the database to disk
                 tokio::spawn(async move {
-                    isam::mirror_handler(isam_db_ref, "database").await;
+                    isam::mirror_handler(isam_db_ref, "database", mirror_interval).await;
                 });
 
                 // Idles the main thread

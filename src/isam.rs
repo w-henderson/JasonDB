@@ -178,8 +178,8 @@ pub fn save(filename: &str, database: &Database) {
 }
 
 /// Handles mirroring the database to the disk.
-/// Updates the disk every 5 seconds if the database has changed.
-pub async fn mirror_handler(database: Arc<RwLock<Database>>, filename: &str) {
+/// Updates the disk every <interval> seconds if the database has changed.
+pub async fn mirror_handler(database: Arc<RwLock<Database>>, filename: &str, interval: u64) {
     let mut cached_writes: u64 = 0;
 
     loop {
@@ -192,6 +192,6 @@ pub async fn mirror_handler(database: Arc<RwLock<Database>>, filename: &str) {
         }
 
         drop(db);
-        std::thread::park_timeout(Duration::from_secs(5));
+        std::thread::park_timeout(Duration::from_secs(interval));
     }
 }

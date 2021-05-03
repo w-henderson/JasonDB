@@ -1,3 +1,5 @@
+//! Manages the CLI and argument parsing.
+
 use clap::{load_yaml, App, AppSettings};
 
 /// Represents arguments passed to the program.
@@ -8,6 +10,7 @@ pub enum Args {
         no_ws: bool,
         ws_cert: String,
         ws_key: String,
+        mirror_interval: u64,
     },
     Create {
         name: String,
@@ -18,7 +21,9 @@ pub enum Args {
 /// Returns an enum representing the command and its parameters.
 pub fn load_args() -> Args {
     let yaml = load_yaml!("../cli/en-gb.yaml");
-    let app = App::from(yaml).setting(AppSettings::SubcommandsNegateReqs);
+    let app = App::from(yaml)
+        .setting(AppSettings::SubcommandsNegateReqs)
+        .setting(AppSettings::ArgRequiredElseHelp);
 
     let matches = app.get_matches();
 
@@ -33,6 +38,7 @@ pub fn load_args() -> Args {
             no_ws: matches.is_present("no-ws"),
             ws_cert: matches.value_of("cert").unwrap_or("").to_string(),
             ws_key: matches.value_of("key").unwrap_or("").to_string(),
+            mirror_interval: matches.value_of_t("interval").unwrap_or(5),
         }
     }
 }
