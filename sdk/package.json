@@ -5,7 +5,7 @@
   "main": "./src/index.js",
   "type": "module",
   "scripts": {
-    "build": "webpack"
+    "build": "tsc && webpack"
   },
   "author": "William Henderson",
   "devDependencies": {

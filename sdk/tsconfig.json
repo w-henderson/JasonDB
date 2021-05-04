@@ -1,0 +1,10 @@
+{
+    "compilerOptions": {
+        "module": "es6",
+        "outDir": "lib",
+        "target": "es6"
+    },
+    "include": [
+        "src"
+    ]
+}

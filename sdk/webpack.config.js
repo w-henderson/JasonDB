@@ -1,7 +1,7 @@
 import path from "path";
 
 export default {
-  entry: "./src/index.js",
+  entry: "./lib/index.js",
   mode: "production",
   output: {
     path: path.resolve("dist"),

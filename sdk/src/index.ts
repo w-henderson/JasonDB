@@ -6,6 +6,9 @@ import Request from "./request.js";
  * Abstracts over WebSocket.
  */
 class JasonDB {
+  private _ws: WebSocket;
+  private _pendingRequests: Request[];
+
   /**
    * Constructs the JasonDB object instance.
    * This involves connecting to the WebSocket and setting up message handlers.
@@ -13,7 +16,7 @@ class JasonDB {
    * @param {string} addr - address to connect to, e.g. `localhost`
    * @param {number} port - port to connect to, defaults to 1338
    */
-  constructor(addr, port = 1338) {
+  constructor(addr: string, port: number = 1338) {
     this._ws = new WebSocket(`wss://${addr}:${port}`);
     this._ws.onmessage = this._wsRecv.bind(this);
     this._pendingRequests = [];
@@ -26,7 +29,7 @@ class JasonDB {
    * @param {string} name - name of the collection to return
    * @returns {Promise<Collection>} promise which resolves to the collection object
    */
-  collection(name) {
+  collection(name: string): Promise<Collection> {
     return this._wsSend(`EXISTS ${name}`)
       .then(exists => {
         if (exists) return Promise.resolve(new Collection(name, this));
@@ -41,7 +44,7 @@ class JasonDB {
    * @param {string} name - name of the collection to create
    * @returns {Promise<Collection>} promise which resolves to the created collection object
    */
-  create(name) {
+  create(name: string): Promise<Collection> {
     return this._wsSend(`CREATE ${name}`)
       .then(() => Promise.resolve(new Collection(name, this)))
       .catch((err) => Promise.reject(err));
@@ -53,7 +56,7 @@ class JasonDB {
    * 
    * @param {MessageEvent} e - message event from the server
    */
-  _wsRecv(e) {
+  _wsRecv(e: MessageEvent) {
     let splitData = e.data.split(" ");
     let id = splitData[1];
     splitData.splice(0, 2);
@@ -74,7 +77,7 @@ class JasonDB {
    * @param {string} message 
    * @returns {Promise<string>} a promise which resolves when the request is fulfilled
    */
-  _wsSend(message) {
+  _wsSend(message: string): Promise<string> {
     let id = new Date().getTime();
     let messageString = `ID ${id} ${message}`;
 

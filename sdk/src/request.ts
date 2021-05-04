@@ -3,6 +3,10 @@
  * Allows for resolution of promises from different threads.
  */
 class Request {
+  public id: string;
+  public resolve: (any) => void;
+  public reject: (string) => void;
+
   /**
    * Creates a request.
    * 
