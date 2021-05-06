@@ -1,5 +1,6 @@
 mod cli;
 mod database;
+mod extract;
 mod isam;
 mod net;
 mod request;
@@ -38,7 +39,7 @@ async fn main() {
 
                 // Create a thread for each type of connection
                 if !no_tcp {
-                    let tcp_socket = TcpListener::bind("127.0.0.1:1337").await.unwrap();
+                    let tcp_socket = TcpListener::bind("0.0.0.0:1337").await.unwrap();
                     let tcp_db_ref = db.clone();
                     tokio::spawn(async move {
                         net::tcp::handler(tcp_socket, &tcp_db_ref).await;
@@ -47,7 +48,7 @@ async fn main() {
 
                 if !no_ws {
                     if let Ok(tls) = net::ws::init_tls(&ws_cert, &ws_key) {
-                        let ws_socket = Server::bind_secure("127.0.0.1:1338", tls).unwrap();
+                        let ws_socket = Server::bind_secure("0.0.0.0:1338", tls).unwrap();
                         let ws_db_ref = db.clone();
                         tokio::spawn(async move {
                             net::ws::handler(ws_socket, &ws_db_ref).await;
@@ -83,6 +84,8 @@ async fn main() {
                 })
                 .expect("Couldn't set exit handler");
 
+                println!("JasonDB active and accessible at 127.0.0.1:1337");
+
                 // Idles the main thread
                 std::thread::park();
             } else {
@@ -93,6 +96,15 @@ async fn main() {
         // If the create subcommand was specified, create a database
         cli::Args::Create { name } => {
             return create_database(&name);
+        }
+
+        // If the extract command was specified, run the extraction tool
+        cli::Args::Extract { path } => {
+            return if let Ok(()) = extract::extract(&path) {
+                println!("Database extracted.")
+            } else {
+                println!("An error occurred.")
+            }
         }
     }
 }

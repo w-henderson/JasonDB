@@ -40,3 +40,12 @@ subcommands:
                 about: Name of the database to create
                 required: true
                 index: 1
+    - extract:
+        about: Extracts a database into a directory
+        version: "0.1.0"
+        author: William Henderson <william-henderson@outlook.com>
+        args:
+            - path:
+                about: Name of the database to extract
+                required: true
+                index: 1

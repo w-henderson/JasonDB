@@ -15,6 +15,9 @@ pub enum Args {
     Create {
         name: String,
     },
+    Extract {
+        path: String,
+    },
 }
 
 /// Loads the arguments that were passed to the program.
@@ -30,6 +33,10 @@ pub fn load_args() -> Args {
     if let Some(subcommand) = matches.subcommand_matches("create") {
         Args::Create {
             name: subcommand.value_of("name").unwrap().to_string(),
+        }
+    } else if let Some(subcommand) = matches.subcommand_matches("extract") {
+        Args::Extract {
+            path: subcommand.value_of("path").unwrap().to_string(),
         }
     } else {
         Args::Main {
