@@ -28,7 +28,7 @@ args:
     - interval:
         short: i
         long: interval
-        about: Number of seconds between saving the database to disk
+        about: Number of seconds between saving the database to disk, defaults to 0 (continuous)
         takes_value: true
 subcommands:
     - create:

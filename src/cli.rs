@@ -45,7 +45,7 @@ pub fn load_args() -> Args {
             no_ws: matches.is_present("no-ws"),
             ws_cert: matches.value_of("cert").unwrap_or("").to_string(),
             ws_key: matches.value_of("key").unwrap_or("").to_string(),
-            mirror_interval: matches.value_of_t("interval").unwrap_or(5),
+            mirror_interval: matches.value_of_t("interval").unwrap_or(0),
         }
     }
 }
