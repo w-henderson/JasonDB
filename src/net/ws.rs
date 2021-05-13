@@ -45,7 +45,11 @@ pub fn init_tls(path: &str, key: &str) -> Result<TlsAcceptor, Box<dyn std::error
 /// Creates a new thread for each individual connection, but individual messages are handled synchronously inside that thread.
 ///
 /// TODO: Implement error handling.
-pub async fn handler(server: WsServer<TlsAcceptor, TcpListener>, db: &Arc<RwLock<Database>>) {
+pub async fn handler(
+    server: WsServer<TlsAcceptor, TcpListener>,
+    db: &Arc<RwLock<Database>>,
+    quiet: bool,
+) {
     // Synchronously accept connections as they come in
     for request in server.filter_map(Result::ok) {
         let db_ref = db.clone();
@@ -54,6 +58,8 @@ pub async fn handler(server: WsServer<TlsAcceptor, TcpListener>, db: &Arc<RwLock
         // Messages are responded to synchronously in this thread.
         thread::spawn(move || {
             let mut client = request.accept().unwrap();
+            let ip = client.peer_addr().unwrap().ip().to_string();
+            crate::cli::log(format!("[WS]   New connection from {}", ip), quiet);
 
             loop {
                 let msg = client.recv_message().unwrap();
@@ -92,6 +98,8 @@ pub async fn handler(server: WsServer<TlsAcceptor, TcpListener>, db: &Arc<RwLock
                                     .unwrap();
                             }
                         }
+
+                        crate::cli::log(format!("[WS]   {}: {}", ip, text), quiet);
                     }
 
                     OwnedMessage::Close(_) => {

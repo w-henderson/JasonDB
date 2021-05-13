@@ -187,6 +187,7 @@ pub async fn mirror_handler(
     filename: &str,
     interval: u64,
     state: Arc<AtomicU8>,
+    quiet: bool,
 ) {
     let mut cached_writes: u64 = 0;
 
@@ -197,6 +198,7 @@ pub async fn mirror_handler(
         if new_writes > &cached_writes {
             cached_writes = *new_writes;
             save(filename, &*db);
+            crate::cli::log("[DISK] Saved to disk.".to_string(), quiet);
         }
 
         drop(db);

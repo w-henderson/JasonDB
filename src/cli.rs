@@ -11,6 +11,7 @@ pub enum Args {
         ws_cert: String,
         ws_key: String,
         mirror_interval: u64,
+        quiet: bool,
     },
     Create {
         name: String,
@@ -46,6 +47,13 @@ pub fn load_args() -> Args {
             ws_cert: matches.value_of("cert").unwrap_or("").to_string(),
             ws_key: matches.value_of("key").unwrap_or("").to_string(),
             mirror_interval: matches.value_of_t("interval").unwrap_or(0),
+            quiet: matches.is_present("quiet"),
         }
+    }
+}
+
+pub fn log(message: String, quiet: bool) {
+    if !quiet {
+        println!("{}", message);
     }
 }

@@ -10,12 +10,14 @@ use tokio_util::codec::{Framed, LinesCodec};
 
 /// Handles TCP connections asynchronously.
 /// Creates a new thread for each individual connection, but individual requests are handled synchronously inside that thread.
-pub async fn handler(listener: TcpListener, db: &Arc<RwLock<Database>>) {
+pub async fn handler(listener: TcpListener, db: &Arc<RwLock<Database>>, quiet: bool) {
     loop {
         // Continously accept connections synchronously
         match listener.accept().await {
             Ok((socket, _)) => {
                 let db_ref = db.clone();
+                let ip = socket.peer_addr().unwrap().ip().to_string();
+                crate::cli::log(format!("[TCP]  New connection from {}", ip), quiet);
 
                 // Accept each connection then passes management of the connection to another thread.
                 // This thread continously listens for requests and responds to them.
@@ -43,6 +45,8 @@ pub async fn handler(listener: TcpListener, db: &Arc<RwLock<Database>>) {
                                     format!("[{}]", responses.join(","))
                                 };
                                 lines.send(&response).await.unwrap();
+
+                                crate::cli::log(format!("[TCP]  {}: {}", ip, line), quiet);
                             }
                             Err(e) => match e {
                                 tokio_util::codec::LinesCodecError::Io(_) => {

@@ -27,6 +27,7 @@ async fn main() {
             ws_cert,
             ws_key,
             mirror_interval,
+            quiet,
         } => {
             // Initialise the database to be mutable and thread-safe
             if let Ok(loaded_db) = isam::load(&database) {
@@ -42,7 +43,7 @@ async fn main() {
                     let tcp_socket = TcpListener::bind("0.0.0.0:1337").await.unwrap();
                     let tcp_db_ref = db.clone();
                     tokio::spawn(async move {
-                        net::tcp::handler(tcp_socket, &tcp_db_ref).await;
+                        net::tcp::handler(tcp_socket, &tcp_db_ref, quiet).await;
                     });
                 }
 
@@ -51,10 +52,10 @@ async fn main() {
                         let ws_socket = Server::bind_secure("0.0.0.0:1338", tls).unwrap();
                         let ws_db_ref = db.clone();
                         tokio::spawn(async move {
-                            net::ws::handler(ws_socket, &ws_db_ref).await;
+                            net::ws::handler(ws_socket, &ws_db_ref, quiet).await;
                         });
                     } else {
-                        return println!("Unspecified or invalid TLS certificate. If you're not using WebSocket, pass the `--no-ws` argument to ignore.");
+                        return println!("[ERR]  Unspecified or invalid TLS certificate. If you're not using WebSocket, pass the `--no-ws` argument to ignore.");
                     }
                 }
 
@@ -66,30 +67,31 @@ async fn main() {
                         &database,
                         mirror_interval,
                         isam_application_state,
+                        quiet,
                     )
                     .await;
                 });
 
                 ctrlc::set_handler(move || {
                     application_state.store(1, Ordering::SeqCst);
-                    println!("waiting for next save to complete...");
+                    println!("[DISK] Waiting for next save to complete...");
 
                     // Wait for the state to change to 2 (safe to terminate).
                     // This change happens in the ISAM thread and can take up to 5 seconds.
                     while application_state.load(Ordering::SeqCst) == 1 {}
 
                     // Safely exit the program
-                    println!("saved database.");
+                    println!("[INFO] Exiting the program.");
                     std::process::exit(0);
                 })
-                .expect("Couldn't set exit handler");
+                .expect("[ERR]  Couldn't set exit handler");
 
-                println!("JasonDB active and accessible at 127.0.0.1:1337");
+                println!("[INFO] JasonDB active and accessible at 127.0.0.1:1337");
 
                 // Idles the main thread
                 std::thread::park();
             } else {
-                return println!("Unspecified or invalid database.");
+                return println!("[ERR]  Unspecified or invalid database.");
             }
         }
 
@@ -101,9 +103,9 @@ async fn main() {
         // If the extract command was specified, run the extraction tool
         cli::Args::Extract { path } => {
             return if let Ok(()) = extract::extract(&path) {
-                println!("Database extracted.")
+                println!("[INFO] Database extracted.")
             } else {
-                println!("An error occurred.")
+                println!("[ERR]  An error occurred.")
             }
         }
     }
