@@ -1,5 +1,5 @@
 <p align="center">
-    <img src="assets/icon.png" width=400><br>
+    <img src="assets/icon.png" width=300><br>
     <img src="https://img.shields.io/badge/language-rust-b07858?style=for-the-badge&logo=rust" style="margin-right:5px">
     <img src="https://img.shields.io/github/workflow/status/w-henderson/JasonDB/Test?style=for-the-badge" style="margin-right:5px">
 </p>
