@@ -207,6 +207,7 @@ pub async fn mirror_handler(
 
     let db = database.read();
     save(filename, &*db);
+    crate::cli::log("[DISK] Saved to disk.".to_string(), quiet);
 
     state.store(2, Ordering::SeqCst);
 }

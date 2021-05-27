@@ -11,6 +11,11 @@ use tokio_util::codec::{Framed, LinesCodec};
 /// Handles TCP connections asynchronously.
 /// Creates a new thread for each individual connection, but individual requests are handled synchronously inside that thread.
 pub async fn handler(listener: TcpListener, db: &Arc<RwLock<Database>>, quiet: bool) {
+    println!(
+        "[TCP]  Server listening at 127.0.0.1:{}",
+        listener.local_addr().unwrap().port()
+    );
+
     loop {
         // Continously accept connections synchronously
         match listener.accept().await {

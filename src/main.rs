@@ -8,6 +8,7 @@ mod tests;
 
 use database::Database;
 use parking_lot::RwLock;
+use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::sync::atomic::{AtomicU8, Ordering};
 use std::sync::Arc;
 use tokio::net::TcpListener;
@@ -15,6 +16,8 @@ use websocket::sync::Server;
 
 #[tokio::main]
 async fn main() {
+    println!("[INFO] Starting JasonDB...");
+
     // Parse arguments
     let args = cli::load_args();
 
@@ -24,6 +27,8 @@ async fn main() {
             database,
             no_tcp,
             no_ws,
+            tcp_port,
+            ws_port,
             ws_cert,
             ws_key,
             mirror_interval,
@@ -40,7 +45,9 @@ async fn main() {
 
                 // Create a thread for each type of connection
                 if !no_tcp {
-                    let tcp_socket = TcpListener::bind("0.0.0.0:1337").await.unwrap();
+                    let tcp_addr = IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0));
+                    let tcp_socket_addr = SocketAddr::new(tcp_addr, tcp_port);
+                    let tcp_socket = TcpListener::bind(tcp_socket_addr).await.unwrap();
                     let tcp_db_ref = db.clone();
                     tokio::spawn(async move {
                         net::tcp::handler(tcp_socket, &tcp_db_ref, quiet).await;
@@ -49,7 +56,9 @@ async fn main() {
 
                 if !no_ws {
                     if let Ok(tls) = net::ws::init_tls(&ws_cert, &ws_key) {
-                        let ws_socket = Server::bind_secure("0.0.0.0:1338", tls).unwrap();
+                        let ws_addr = IpAddr::V4(Ipv4Addr::new(0, 0, 0, 0));
+                        let ws_socket_addr = SocketAddr::new(ws_addr, ws_port);
+                        let ws_socket = Server::bind_secure(ws_socket_addr, tls).unwrap();
                         let ws_db_ref = db.clone();
                         tokio::spawn(async move {
                             net::ws::handler(ws_socket, &ws_db_ref, quiet).await;
@@ -85,8 +94,6 @@ async fn main() {
                     std::process::exit(0);
                 })
                 .expect("[ERR]  Couldn't set exit handler");
-
-                println!("[INFO] JasonDB active and accessible at 127.0.0.1:1337");
 
                 // Idles the main thread
                 std::thread::park();

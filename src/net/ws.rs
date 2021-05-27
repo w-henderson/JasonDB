@@ -50,6 +50,11 @@ pub async fn handler(
     db: &Arc<RwLock<Database>>,
     quiet: bool,
 ) {
+    println!(
+        "[WS]   Server listening at 127.0.0.1:{}",
+        server.local_addr().unwrap().port()
+    );
+
     // Synchronously accept connections as they come in
     for request in server.filter_map(Result::ok) {
         let db_ref = db.clone();

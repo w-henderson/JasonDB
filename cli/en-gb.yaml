@@ -1,5 +1,5 @@
 name: JasonDB
-version: "0.1.0"
+version: "0.1.1"
 author: William Henderson <william-henderson@outlook.com>
 about: A JSON-Based Database Management System for the Web
 args:
@@ -15,6 +15,16 @@ args:
     - no-ws:
         long: no-ws
         about: Disable WebSocket listener so the database is only accessible via TCP
+    - tcp-port:
+        short: p
+        long: tcp-port
+        about: Port to bind the TCP listener to, defaults to 1337
+        takes_value: true
+    - ws-port:
+        short: w
+        long: ws-port
+        about: Port to bind the WebSocket listener to, defaults to 1338
+        takes_value: true
     - cert:
         short: c
         long: cert
