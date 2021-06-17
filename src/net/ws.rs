@@ -1,6 +1,8 @@
 //! Manages WebSocket connections and TLS.
 
+use crate::cli::LogConfig;
 use crate::{database::Database, request};
+
 use dotenv::var;
 use native_tls::{Identity, TlsAcceptor};
 use parking_lot::RwLock;
@@ -41,30 +43,33 @@ pub fn init_tls(path: &str, key: &str) -> Result<TlsAcceptor, Box<dyn std::error
     let identity = Identity::from_pkcs12(&bytes, &key)?;
     Ok(TlsAcceptor::new(identity)?)
 }
+
 /// Handles WebSocket connections asynchronously.
 /// Creates a new thread for each individual connection, but individual messages are handled synchronously inside that thread.
-///
-/// TODO: Implement error handling.
 pub async fn handler(
     server: WsServer<TlsAcceptor, TcpListener>,
     db: &Arc<RwLock<Database>>,
-    quiet: bool,
+    config: LogConfig,
 ) {
-    println!(
-        "[WS]   Server listening at 127.0.0.1:{}",
-        server.local_addr().unwrap().port()
+    crate::cli::log(
+        &format!(
+            "[WS]   Server listening at 127.0.0.1:{}",
+            server.local_addr().unwrap().port()
+        ),
+        &config,
     );
 
     // Synchronously accept connections as they come in
     for request in server.filter_map(Result::ok) {
         let db_ref = db.clone();
+        let config_clone = config.clone();
 
         // Create a new thread for managing two-way communication with the client.
         // Messages are responded to synchronously in this thread.
         thread::spawn(move || {
             let mut client = request.accept().unwrap();
             let ip = client.peer_addr().unwrap().ip().to_string();
-            crate::cli::log(format!("[WS]   New connection from {}", ip), quiet);
+            crate::cli::log(&format!("[WS]   New connection from {}", ip), &config_clone);
 
             loop {
                 let msg = client.recv_message().unwrap();
@@ -104,7 +109,7 @@ pub async fn handler(
                             }
                         }
 
-                        crate::cli::log(format!("[WS]   {}: {}", ip, text), quiet);
+                        crate::cli::log(&format!("[WS]   {}: {}", ip, text), &config_clone);
                     }
 
                     OwnedMessage::Close(_) => {

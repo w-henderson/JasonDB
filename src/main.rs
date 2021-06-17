@@ -16,8 +16,6 @@ use websocket::sync::Server;
 
 #[tokio::main]
 async fn main() {
-    println!("[INFO] Starting JasonDB...");
-
     // Parse arguments
     let args = cli::load_args();
 
@@ -32,8 +30,10 @@ async fn main() {
             ws_cert,
             ws_key,
             mirror_interval,
-            quiet,
+            log_config,
         } => {
+            cli::log("[INFO] Starting JasonDB...", &log_config.force());
+
             // Initialise the database to be mutable and thread-safe
             if let Ok(loaded_db) = isam::load(&database) {
                 let db = Arc::new(RwLock::new(loaded_db));
@@ -49,8 +49,9 @@ async fn main() {
                     let tcp_socket_addr = SocketAddr::new(tcp_addr, tcp_port);
                     let tcp_socket = TcpListener::bind(tcp_socket_addr).await.unwrap();
                     let tcp_db_ref = db.clone();
+                    let config_clone = log_config.clone();
                     tokio::spawn(async move {
-                        net::tcp::handler(tcp_socket, &tcp_db_ref, quiet).await;
+                        net::tcp::handler(tcp_socket, &tcp_db_ref, config_clone).await;
                     });
                 }
 
@@ -60,37 +61,42 @@ async fn main() {
                         let ws_socket_addr = SocketAddr::new(ws_addr, ws_port);
                         let ws_socket = Server::bind_secure(ws_socket_addr, tls).unwrap();
                         let ws_db_ref = db.clone();
+                        let config_clone = log_config.clone();
                         tokio::spawn(async move {
-                            net::ws::handler(ws_socket, &ws_db_ref, quiet).await;
+                            net::ws::handler(ws_socket, &ws_db_ref, config_clone).await;
                         });
                     } else {
-                        return println!("[ERR]  Unspecified or invalid TLS certificate. If you're not using WebSocket, pass the `--no-ws` argument to ignore.");
+                        return cli::log("[ERR]  Unspecified or invalid TLS certificate. If you're not using WebSocket, pass the `--no-ws` argument to ignore.", &log_config);
                     }
                 }
 
                 // Create a thread to asynchronously mirror the database to disk
                 let isam_application_state = application_state.clone();
+                let config_clone = log_config.clone();
                 tokio::spawn(async move {
                     isam::mirror_handler(
                         isam_db_ref,
                         &database,
                         mirror_interval,
                         isam_application_state,
-                        quiet,
+                        config_clone,
                     )
                     .await;
                 });
 
                 ctrlc::set_handler(move || {
                     application_state.store(1, Ordering::SeqCst);
-                    println!("[DISK] Waiting for next save to complete...");
+                    cli::log(
+                        "[DISK] Waiting for next save to complete...",
+                        &log_config.force(),
+                    );
 
                     // Wait for the state to change to 2 (safe to terminate).
                     // This change happens in the ISAM thread and can take up to 5 seconds.
                     while application_state.load(Ordering::SeqCst) == 1 {}
 
                     // Safely exit the program
-                    println!("[INFO] Exiting the program.");
+                    cli::log("[INFO] Exiting the program.", &log_config.force());
                     std::process::exit(0);
                 })
                 .expect("[ERR]  Couldn't set exit handler");
@@ -98,7 +104,10 @@ async fn main() {
                 // Idles the main thread
                 std::thread::park();
             } else {
-                return println!("[ERR]  Unspecified or invalid database.");
+                return cli::log(
+                    "[ERR]  Unspecified or invalid database.",
+                    &log_config.force(),
+                );
             }
         }
 
@@ -110,10 +119,15 @@ async fn main() {
         // If the extract command was specified, run the extraction tool
         cli::Args::Extract { path } => {
             return if let Ok(()) = extract::extract(&path) {
-                println!("[INFO] Database extracted.")
+                cli::log("[INFO] Database extracted.", &cli::LogConfig::default())
             } else {
-                println!("[ERR]  An error occurred.")
+                cli::log("[ERR]  An error occurred.", &cli::LogConfig::default())
             }
+        }
+
+        // If an error occurred while parsing arguments
+        cli::Args::Error { message } => {
+            cli::log(&format!("[ERR]  {}", message), &cli::LogConfig::default())
         }
     }
 }
@@ -123,5 +137,5 @@ async fn main() {
 fn create_database(name: &str) {
     let db = Database::new(name);
     isam::save(name, &db);
-    println!("Empty database created.");
+    cli::log("[INFO] Empty database created.", &cli::LogConfig::default());
 }

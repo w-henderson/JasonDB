@@ -1,6 +1,11 @@
-//! Manages the CLI and argument parsing.
+//! Manages the CLI, argument parsing and logging.
 
 use clap::{load_yaml, App, AppSettings};
+use std::{
+    fs::{File, OpenOptions},
+    io::Write,
+    time::SystemTime,
+};
 
 /// Represents arguments passed to the program.
 pub enum Args {
@@ -13,7 +18,7 @@ pub enum Args {
         ws_cert: String,
         ws_key: String,
         mirror_interval: u64,
-        quiet: bool,
+        log_config: LogConfig,
     },
     Create {
         name: String,
@@ -21,6 +26,31 @@ pub enum Args {
     Extract {
         path: String,
     },
+    Error {
+        message: String,
+    },
+}
+
+#[derive(Clone)]
+pub struct LogConfig {
+    quiet: bool,
+    file: Option<String>,
+}
+
+impl LogConfig {
+    pub fn force(&self) -> Self {
+        Self {
+            quiet: false,
+            file: self.file.clone(),
+        }
+    }
+
+    pub fn default() -> Self {
+        Self {
+            quiet: false,
+            file: None,
+        }
+    }
 }
 
 /// Loads the arguments that were passed to the program.
@@ -42,6 +72,14 @@ pub fn load_args() -> Args {
             path: subcommand.value_of("path").unwrap().to_string(),
         }
     } else {
+        if let Some(logfile) = matches.value_of("logfile") {
+            if File::create(logfile).is_err() {
+                return Args::Error {
+                    message: "Log file could not be created.".to_string(),
+                };
+            }
+        }
+
         Args::Main {
             database: matches.value_of("DATABASE").unwrap().to_string(),
             no_tcp: matches.is_present("no-tcp"),
@@ -51,13 +89,29 @@ pub fn load_args() -> Args {
             ws_cert: matches.value_of("cert").unwrap_or("").to_string(),
             ws_key: matches.value_of("key").unwrap_or("").to_string(),
             mirror_interval: matches.value_of_t("interval").unwrap_or(0),
-            quiet: matches.is_present("quiet"),
+            log_config: LogConfig {
+                quiet: matches.is_present("quiet"),
+                file: matches.value_of("logfile").map(String::from),
+            },
         }
     }
 }
 
-pub fn log(message: String, quiet: bool) {
-    if !quiet {
+pub fn log(message: &str, config: &LogConfig) {
+    if !config.quiet {
         println!("{}", message);
+    }
+
+    if let Some(file_name) = &config.file {
+        let mut file = OpenOptions::new().append(true).open(file_name).unwrap();
+        let time = SystemTime::now()
+            .duration_since(SystemTime::UNIX_EPOCH)
+            .unwrap()
+            .as_secs()
+            .to_string()
+            + " ";
+        file.write(time.as_bytes()).unwrap();
+        file.write(message.as_bytes()).unwrap();
+        file.write(b"\n").unwrap();
     }
 }

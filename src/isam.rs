@@ -1,5 +1,4 @@
-#![allow(dead_code)]
-use crate::database::Database;
+use crate::{cli::LogConfig, database::Database};
 use parking_lot::RwLock;
 use std::{
     convert::TryInto,
@@ -187,7 +186,7 @@ pub async fn mirror_handler(
     filename: &str,
     interval: u64,
     state: Arc<AtomicU8>,
-    quiet: bool,
+    config: LogConfig,
 ) {
     let mut cached_writes: u64 = 0;
 
@@ -198,7 +197,7 @@ pub async fn mirror_handler(
         if new_writes > &cached_writes {
             cached_writes = *new_writes;
             save(filename, &*db);
-            crate::cli::log("[DISK] Saved to disk.".to_string(), quiet);
+            crate::cli::log("[DISK] Saved to disk.", &config);
         }
 
         drop(db);
@@ -207,7 +206,7 @@ pub async fn mirror_handler(
 
     let db = database.read();
     save(filename, &*db);
-    crate::cli::log("[DISK] Saved to disk.".to_string(), quiet);
+    crate::cli::log("[DISK] Saved to disk.", &config);
 
     state.store(2, Ordering::SeqCst);
 }

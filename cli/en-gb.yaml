@@ -1,5 +1,5 @@
 name: JasonDB
-version: "0.1.1"
+version: "0.1.2"
 author: William Henderson <william-henderson@outlook.com>
 about: A JSON-Based Database Management System for the Web
 args:
@@ -44,6 +44,11 @@ args:
         short: q
         long: quiet
         about: Whether to suppress informative messages, recommended for large projects
+    - logfile:
+        short: l
+        long: log
+        about: Path to a log file
+        takes_value: true
 subcommands:
     - create:
         about: Creates a new database with the given name

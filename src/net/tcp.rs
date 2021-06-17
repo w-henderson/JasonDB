@@ -1,7 +1,9 @@
 //! Manages TCP connections.
 
+use crate::cli::LogConfig;
 use crate::database::Database;
 use crate::request;
+
 use futures::{SinkExt, StreamExt};
 use parking_lot::RwLock;
 use std::sync::Arc;
@@ -10,10 +12,13 @@ use tokio_util::codec::{Framed, LinesCodec};
 
 /// Handles TCP connections asynchronously.
 /// Creates a new thread for each individual connection, but individual requests are handled synchronously inside that thread.
-pub async fn handler(listener: TcpListener, db: &Arc<RwLock<Database>>, quiet: bool) {
-    println!(
-        "[TCP]  Server listening at 127.0.0.1:{}",
-        listener.local_addr().unwrap().port()
+pub async fn handler(listener: TcpListener, db: &Arc<RwLock<Database>>, config: LogConfig) {
+    crate::cli::log(
+        &format!(
+            "[TCP]  Server listening at 127.0.0.1:{}",
+            listener.local_addr().unwrap().port()
+        ),
+        &config,
     );
 
     loop {
@@ -22,7 +27,8 @@ pub async fn handler(listener: TcpListener, db: &Arc<RwLock<Database>>, quiet: b
             Ok((socket, _)) => {
                 let db_ref = db.clone();
                 let ip = socket.peer_addr().unwrap().ip().to_string();
-                crate::cli::log(format!("[TCP]  New connection from {}", ip), quiet);
+                let config_clone = config.clone();
+                crate::cli::log(&format!("[TCP]  New connection from {}", ip), &config_clone);
 
                 // Accept each connection then passes management of the connection to another thread.
                 // This thread continously listens for requests and responds to them.
@@ -51,7 +57,7 @@ pub async fn handler(listener: TcpListener, db: &Arc<RwLock<Database>>, quiet: b
                                 };
                                 lines.send(&response).await.unwrap();
 
-                                crate::cli::log(format!("[TCP]  {}: {}", ip, line), quiet);
+                                crate::cli::log(&format!("[TCP]  {}: {}", ip, line), &config_clone);
                             }
                             Err(e) => match e {
                                 tokio_util::codec::LinesCodecError::Io(_) => {
