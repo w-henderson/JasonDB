@@ -110,8 +110,8 @@ pub fn log(message: &str, config: &LogConfig) {
             .as_secs()
             .to_string()
             + " ";
-        file.write(time.as_bytes()).unwrap();
-        file.write(message.as_bytes()).unwrap();
-        file.write(b"\n").unwrap();
+        file.write_all(time.as_bytes()).unwrap();
+        file.write_all(message.as_bytes()).unwrap();
+        file.write_all(b"\n").unwrap();
     }
 }

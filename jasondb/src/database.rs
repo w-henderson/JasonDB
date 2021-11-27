@@ -89,7 +89,7 @@ impl Database {
     /// Does not allocate memory for the documents until one is created.
     /// If a collection with the same name already exists, throws `CollectionError`.
     pub fn create_collection(&mut self, name: &str) -> Result<(), CollectionError> {
-        if let Some(_) = self.collections.iter().position(|x| x.name == name) {
+        if self.collections.iter().any(|x| x.name == name) {
             Err(CollectionError)
         } else {
             self.collections.push(Collection {

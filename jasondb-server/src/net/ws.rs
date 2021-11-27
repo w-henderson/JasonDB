@@ -33,8 +33,8 @@ use websocket::{server::WsServer, OwnedMessage};
 #[rustfmt::skip]
 pub fn init_tls(path: &str, key: &str) -> Result<TlsAcceptor, Box<dyn std::error::Error>> {
     // Attempts to read certificate information from `.env` if not specified
-    let path = if path == "" { var("CERT")? } else { path.to_string() };
-    let key = if key == "" { var("KEY")? } else { key.to_string() };
+    let path = if path.is_empty() { var("CERT")? } else { path.to_string() };
+    let key = if key.is_empty() { var("KEY")? } else { key.to_string() };
 
     // Opens and reads the certificate file
     let mut file = File::open(path)?;
@@ -88,27 +88,24 @@ pub async fn handler(
 
                             // Sends the response
                             client.send_message(&json_message).unwrap();
-                        } else {
-                            if let Some(request_start) = &text[3..].find(" ") {
-                                // Parses and executes the request
-                                let request = request::parse(&text[request_start + 4..]);
-                                let response = request::execute(request, &db_ref);
-                                let json_message = OwnedMessage::Text(format!(
-                                    "ID {} {}",
-                                    &text[3..*request_start + 3],
-                                    response.to_json()
-                                ));
+                        } else if let Some(request_start) = &text[3..].find(' ') {
+                            // Parses and executes the request
+                            let request = request::parse(&text[request_start + 4..]);
+                            let response = request::execute(request, &db_ref);
+                            let json_message = OwnedMessage::Text(format!(
+                                "ID {} {}",
+                                &text[3..*request_start + 3],
+                                response.to_json()
+                            ));
 
-                                // Sends the response
-                                client.send_message(&json_message).unwrap();
-                            } else {
-                                client
-                                    .send_message(&OwnedMessage::Text(
-                                        r#"{"status": "error", "message": "Malformed ID"}"#
-                                            .to_string(),
-                                    ))
-                                    .unwrap();
-                            }
+                            // Sends the response
+                            client.send_message(&json_message).unwrap();
+                        } else {
+                            client
+                                .send_message(&OwnedMessage::Text(
+                                    r#"{"status": "error", "message": "Malformed ID"}"#.to_string(),
+                                ))
+                                .unwrap();
                         }
 
                         crate::cli::log(&format!("[WS]   {}: {}", ip, text), &config_clone);

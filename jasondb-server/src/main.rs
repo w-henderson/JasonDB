@@ -107,17 +107,15 @@ async fn main() {
                 // Idles the main thread
                 std::thread::park();
             } else {
-                return cli::log(
+                cli::log(
                     "[ERR]  Unspecified or invalid database.",
                     &log_config.force(),
-                );
+                )
             }
         }
 
         // If the create subcommand was specified, create a database
-        cli::Args::Create { name } => {
-            return create_database(&name);
-        }
+        cli::Args::Create { name } => create_database(&name),
 
         // If the extract command was specified, run the extraction tool
         cli::Args::Extract { path } => {

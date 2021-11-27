@@ -289,7 +289,7 @@ pub fn execute(request: Request, db_ref: &Arc<RwLock<Database>>) -> Response {
             let db = db_ref.read();
             let collection_option = (*db).collection(collection);
             if let Some(coll) = collection_option {
-                if coll.list().len() == 0 {
+                if coll.list().is_empty() {
                     return Response::success(Some("{}".to_string()));
                 };
 
@@ -306,7 +306,7 @@ pub fn execute(request: Request, db_ref: &Arc<RwLock<Database>>) -> Response {
                                             string_value == value
                                         } else if let Some(numeric_value) = actual_value.as_f64() {
                                             if let Ok(target_value) = value.parse::<f64>() {
-                                                target_value == numeric_value
+                                                (target_value - numeric_value).abs() < f64::EPSILON
                                             } else {
                                                 false
                                             }
@@ -391,13 +391,11 @@ pub fn execute(request: Request, db_ref: &Arc<RwLock<Database>>) -> Response {
                 } else {
                     Response::error("Collection not found")
                 }
+            } else if (*db).delete_collection(collection).is_ok() {
+                db.increment_writes();
+                Response::success(None)
             } else {
-                if (*db).delete_collection(collection).is_ok() {
-                    db.increment_writes();
-                    Response::success(None)
-                } else {
-                    Response::error("Collection not found")
-                }
+                Response::error("Collection not found")
             }
         }
 

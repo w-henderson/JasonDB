@@ -13,3 +13,6 @@ serde_json = { version = "1.0", optional = true }
 [features]
 validation = ["serde", "serde_json"]
 default = ["validation"]
+
+[lib]
+doctest = false
