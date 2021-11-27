@@ -16,7 +16,7 @@ pub fn extract(path: &str) -> Result<(), Box<dyn std::error::Error>> {
             // For every document of every collection, write it to a file
             let mut file =
                 File::create(format!("{}/{}/{}.json", path, collection.name, document.id))?;
-            file.write(document.json.as_bytes())?;
+            file.write_all(document.json.as_bytes())?;
         }
     }
 

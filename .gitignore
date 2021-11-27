@@ -3,6 +3,7 @@ target/
 dist/
 node_modules/
 lib/
+Cargo.lock
 
 # database files
 *.jdb

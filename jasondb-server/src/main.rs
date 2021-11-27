@@ -1,12 +1,15 @@
 mod cli;
-mod database;
 mod extract;
-mod isam;
+mod isam_mirror;
 mod net;
 mod request;
+
+#[cfg(test)]
 mod tests;
 
-use database::Database;
+use jasondb::database::Database;
+use jasondb::isam;
+
 use parking_lot::RwLock;
 use std::net::{IpAddr, Ipv4Addr, SocketAddr};
 use std::sync::atomic::{AtomicU8, Ordering};
@@ -74,7 +77,7 @@ async fn main() {
                 let isam_application_state = application_state.clone();
                 let config_clone = log_config.clone();
                 tokio::spawn(async move {
-                    isam::mirror_handler(
+                    isam_mirror::mirror_handler(
                         isam_db_ref,
                         &database,
                         mirror_interval,
@@ -104,17 +107,15 @@ async fn main() {
                 // Idles the main thread
                 std::thread::park();
             } else {
-                return cli::log(
+                cli::log(
                     "[ERR]  Unspecified or invalid database.",
                     &log_config.force(),
-                );
+                )
             }
         }
 
         // If the create subcommand was specified, create a database
-        cli::Args::Create { name } => {
-            return create_database(&name);
-        }
+        cli::Args::Create { name } => create_database(&name),
 
         // If the extract command was specified, run the extraction tool
         cli::Args::Extract { path } => {

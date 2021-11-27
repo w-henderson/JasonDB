@@ -7,17 +7,17 @@ use std::fs::remove_file;
 /// This partially tests the `database` module and fully tests the `isam` module.
 fn create_save_load() {
     // Create a database and fill it with example data
-    let mut db = Database::new("test");
+    let mut db = Database::new("test.jdb");
     db.create_collection("users").unwrap();
     let users = db.collection_mut("users").unwrap();
     users.set("CoolTomato", r#"{"name": "William Henderson"}"#.to_string());
     users.set("Chrome599", r#"{"name": "Frankie Lambert"}"#.to_string());
 
     // Save the database using ISAM
-    isam::save("test", &db);
+    isam::save("test.jdb", &db);
 
     // Load the database back again using ISAM
-    let new_db = isam::load("test").unwrap();
+    let new_db = isam::load("test.jdb").unwrap();
 
     // Assert that the original in-memory instance is identical to that loaded from disk
     assert_eq!(db, new_db);

@@ -19,6 +19,7 @@ fn test_valid_json() {
 }
 
 #[test]
+#[cfg(feature = "validation")]
 fn test_invalid_json() {
     let invalid_json = [
         r#"{"name": "William Henderson}"#,

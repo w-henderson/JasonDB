@@ -1,15 +1,8 @@
-use crate::{cli::LogConfig, database::Database};
-use parking_lot::RwLock;
-use std::{
-    convert::TryInto,
-    fs::File,
-    io::{Read, Seek, SeekFrom},
-    sync::{
-        atomic::{AtomicU8, Ordering},
-        Arc,
-    },
-    time::Duration,
-};
+use crate::database::Database;
+
+use std::convert::TryInto;
+use std::fs::File;
+use std::io::{Read, Seek, SeekFrom};
 use tar::{Archive, Builder, Header};
 
 #[derive(Debug)]
@@ -41,8 +34,8 @@ impl std::error::Error for ISAMError {}
 /// ```
 pub fn load(filename: &str) -> Result<Database, Box<dyn std::error::Error>> {
     // Open the file and load the TAR archive
-    let file = File::open(format!("{}.jdb", filename))?;
-    let mut raw_file = File::open(format!("{}.jdb", filename))?;
+    let file = File::open(filename)?;
+    let mut raw_file = File::open(filename)?;
     let mut archive = Archive::new(file);
 
     // Initialise the database object
@@ -129,7 +122,7 @@ pub fn load(filename: &str) -> Result<Database, Box<dyn std::error::Error>> {
 /// isam::save("myDatabase", &db);
 /// ```
 pub fn save(filename: &str, database: &Database) {
-    let file = File::create(format!("{}.jdb", filename)).unwrap();
+    let file = File::create(filename).unwrap();
     let mut archive = Builder::new(file);
 
     for collection in database.get_collections() {
@@ -177,36 +170,4 @@ pub fn save(filename: &str, database: &Database) {
     }
 
     archive.finish().unwrap();
-}
-
-/// Handles mirroring the database to the disk.
-/// Updates the disk every <interval> seconds if the database has changed.
-pub async fn mirror_handler(
-    database: Arc<RwLock<Database>>,
-    filename: &str,
-    interval: u64,
-    state: Arc<AtomicU8>,
-    config: LogConfig,
-) {
-    let mut cached_writes: u64 = 0;
-
-    while state.load(Ordering::SeqCst) == 0 {
-        let db = database.read();
-        let new_writes = db.get_writes();
-
-        if new_writes > &cached_writes {
-            cached_writes = *new_writes;
-            save(filename, &*db);
-            crate::cli::log("[DISK] Saved to disk.", &config);
-        }
-
-        drop(db);
-        std::thread::park_timeout(Duration::from_secs(interval));
-    }
-
-    let db = database.read();
-    save(filename, &*db);
-    crate::cli::log("[DISK] Saved to disk.", &config);
-
-    state.store(2, Ordering::SeqCst);
 }
