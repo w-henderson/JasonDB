@@ -1,6 +1,8 @@
 #![allow(dead_code)]
-use serde_json::{from_str, Value};
 use std::{error::Error, fmt::Display};
+
+#[cfg(feature = "validation")]
+use serde_json::{from_str, Value};
 
 /// Struct representing the database as a whole.
 /// Contains the collections as well as its name.
@@ -177,6 +179,7 @@ impl Collection {
 impl Document {
     /// Creates a new document object.
     /// If the JSON value is invalid, returns `None`.
+    #[cfg(feature = "validation")]
     pub fn new(id: String, json: String) -> Option<Self> {
         let valid = from_str::<Value>(&json).is_ok();
         if valid {
@@ -184,5 +187,12 @@ impl Document {
         } else {
             None
         }
+    }
+
+    /// Creates a new document object.
+    /// If the JSON value is invalid, returns `None`.
+    #[cfg(not(feature = "validation"))]
+    pub fn new(id: String, json: String) -> Option<Self> {
+        Some(Self { id, json })
     }
 }

@@ -1,7 +1,9 @@
 //! Manages WebSocket connections and TLS.
 
 use crate::cli::LogConfig;
-use crate::{database::Database, request};
+use crate::request;
+
+use jasondb::database::Database;
 
 use dotenv::var;
 use native_tls::{Identity, TlsAcceptor};

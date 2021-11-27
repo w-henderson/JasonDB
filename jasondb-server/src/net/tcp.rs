@@ -1,8 +1,9 @@
 //! Manages TCP connections.
 
 use crate::cli::LogConfig;
-use crate::database::Database;
 use crate::request;
+
+use jasondb::database::Database;
 
 use futures::{SinkExt, StreamExt};
 use parking_lot::RwLock;
