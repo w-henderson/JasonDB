@@ -2,6 +2,13 @@
 name = "jasondb"
 version = "0.1.0"
 edition = "2018"
+license = "MIT"
+homepage = "https://github.com/w-henderson/JasonDB"
+repository = "https://github.com/w-henderson/JasonDB"
+readme = "README.md"
+description = "A JSON-Based Database Management System for the Web."
+keywords = ["database", "json", "dbms"]
+categories = ["database", "database-implementations"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
