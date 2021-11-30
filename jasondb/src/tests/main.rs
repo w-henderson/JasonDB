@@ -1,6 +1,6 @@
-#![allow(unused_imports)]
-use crate::{database::Database, isam};
-use std::fs::remove_file;
+use crate::database::Database;
+use crate::isam;
+use crate::prelude::*;
 
 #[test]
 /// Tests whether the program can create a database, add data to it, save it to disk, and read it back from disk.
@@ -8,10 +8,8 @@ use std::fs::remove_file;
 fn create_save_load() {
     // Create a database and fill it with example data
     let mut db = Database::new("test.jdb");
-    db.create_collection("users").unwrap();
-    let users = db.collection_mut("users").unwrap();
-    users.set("CoolTomato", r#"{"name": "William Henderson"}"#.to_string());
-    users.set("Chrome599", r#"{"name": "Frankie Lambert"}"#.to_string());
+    set!(&mut db, "users/user1", "{\"name\": \"William Henderson\"}");
+    set!(&mut db, "users/user2", "{\"name\": \"Frankie Lambert\"}");
 
     // Save the database using ISAM
     isam::save("test.jdb", &db);
