@@ -65,35 +65,37 @@ impl Database {
     /// ```rs
     /// let mut db = Database::new("myDatabase");
     /// ```
-    pub fn new(name: &str) -> Self {
+    pub fn new(name: impl AsRef<str>) -> Self {
         Self {
             collections: Vec::new(),
-            name: name.to_string(),
+            name: name.as_ref().to_string(),
             writes: 0,
         }
     }
 
     /// Returns a reference to the named collection if it exists, or `None` otherwise.
     /// Has a time complexity of O(n) where n is the number of collections.
-    pub fn collection(&self, name: &str) -> Option<&Collection> {
-        self.collections.iter().find(|x| x.name == name)
+    pub fn collection(&self, name: impl AsRef<str>) -> Option<&Collection> {
+        self.collections.iter().find(|x| x.name == name.as_ref())
     }
 
     /// Returns a mutable reference to the named collection if it exists, or `None` otherwise.
     /// Has a time complexity of O(n) where n is the number of collections.
-    pub fn collection_mut(&mut self, name: &str) -> Option<&mut Collection> {
-        self.collections.iter_mut().find(|x| x.name == name)
+    pub fn collection_mut(&mut self, name: impl AsRef<str>) -> Option<&mut Collection> {
+        self.collections
+            .iter_mut()
+            .find(|x| x.name == name.as_ref())
     }
 
     /// Creates a new collection in the database with the given name.
     /// Does not allocate memory for the documents until one is created.
     /// If a collection with the same name already exists, throws `CollectionError`.
-    pub fn create_collection(&mut self, name: &str) -> Result<(), CollectionError> {
-        if self.collections.iter().any(|x| x.name == name) {
+    pub fn create_collection(&mut self, name: impl AsRef<str>) -> Result<(), CollectionError> {
+        if self.collections.iter().any(|x| x.name == name.as_ref()) {
             Err(CollectionError)
         } else {
             self.collections.push(Collection {
-                name: name.to_string(),
+                name: name.as_ref().to_string(),
                 documents: Vec::new(),
             });
             Ok(())
@@ -102,8 +104,12 @@ impl Database {
 
     /// Deletes a collection from the database with the given name.
     /// If the collection does not exist, throws `CollectionError`.
-    pub fn delete_collection(&mut self, name: &str) -> Result<(), CollectionError> {
-        if let Some(collection_index) = self.collections.iter().position(|x| x.name == name) {
+    pub fn delete_collection(&mut self, name: impl AsRef<str>) -> Result<(), CollectionError> {
+        if let Some(collection_index) = self
+            .collections
+            .iter()
+            .position(|x| x.name == name.as_ref())
+        {
             self.collections.remove(collection_index);
             Ok(())
         } else {
@@ -135,19 +141,19 @@ impl Database {
 impl Collection {
     /// Gets a document from the collection with the given ID.
     /// If no document exists, returns `None`.
-    pub fn get(&self, id: &str) -> Option<&Document> {
-        self.documents.iter().find(|x| x.id == id)
+    pub fn get(&self, id: impl AsRef<str>) -> Option<&Document> {
+        self.documents.iter().find(|x| x.id == id.as_ref())
     }
 
     /// Sets a document to the given value.
     /// If the JSON is invalid, returns `false`.
     /// If the document was successfully set, returns `true`.
     /// If the document already exists, it is overwritten.
-    pub fn set(&mut self, id: &str, value: String) -> bool {
-        let new_document = Document::new(id.to_string(), value);
+    pub fn set(&mut self, id: impl AsRef<str>, value: impl AsRef<str>) -> bool {
+        let new_document = Document::new(id.as_ref().to_string(), value.as_ref().to_string());
 
         if let Some(document) = new_document {
-            if let Some(index) = self.documents.iter().position(|x| x.id == id) {
+            if let Some(index) = self.documents.iter().position(|x| x.id == id.as_ref()) {
                 self.documents.remove(index);
             }
 
@@ -161,8 +167,8 @@ impl Collection {
 
     /// Removes a document from the collection.
     /// If the document was successfully removed, returns `true`.
-    pub fn remove(&mut self, id: &str) -> bool {
-        if let Some(index) = self.documents.iter().position(|x| x.id == id) {
+    pub fn remove(&mut self, id: impl AsRef<str>) -> bool {
+        if let Some(index) = self.documents.iter().position(|x| x.id == id.as_ref()) {
             self.documents.remove(index);
             true
         } else {
@@ -180,10 +186,13 @@ impl Document {
     /// Creates a new document object.
     /// If the JSON value is invalid, returns `None`.
     #[cfg(feature = "validation")]
-    pub fn new(id: String, json: String) -> Option<Self> {
-        let valid = from_str::<Value>(&json).is_ok();
+    pub fn new(id: impl AsRef<str>, json: impl AsRef<str>) -> Option<Self> {
+        let valid = from_str::<Value>(json.as_ref()).is_ok();
         if valid {
-            Some(Self { id, json })
+            Some(Self {
+                id: id.as_ref().to_string(),
+                json: json.as_ref().to_string(),
+            })
         } else {
             None
         }
@@ -192,7 +201,10 @@ impl Document {
     /// Creates a new document object.
     /// If the JSON value is invalid, returns `None`.
     #[cfg(not(feature = "validation"))]
-    pub fn new(id: String, json: String) -> Option<Self> {
-        Some(Self { id, json })
+    pub fn new(id: impl AsRef<str>, json: impl AsRef<str>) -> Option<Self> {
+        Some(Self {
+            id: id.as_ref().to_string(),
+            json: json.as_ref().to_string(),
+        })
     }
 }

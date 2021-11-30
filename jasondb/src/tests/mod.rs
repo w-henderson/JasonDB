@@ -1,3 +1,5 @@
-pub mod json;
-pub mod main;
 pub mod macros;
+pub mod main;
+
+#[cfg(feature = "validation")]
+pub mod json;

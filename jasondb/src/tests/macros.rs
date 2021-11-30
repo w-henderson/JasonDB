@@ -6,7 +6,7 @@ fn set_up_db() -> Database {
     db.create_collection("users").unwrap();
 
     let users = db.collection_mut("users").unwrap();
-    users.set("w-henderson", "{\"name\": \"William Henderson\"}".into());
+    users.set("w-henderson", "{\"name\": \"William Henderson\"}");
 
     db
 }
@@ -41,12 +41,12 @@ fn test_write_macros() {
     let expected_json_2 = "{\"name\": \"Bob\"}";
 
     // Set some documents using macros
-    set!(&mut db, "users/alice", expected_json_1.into());
-    set!(&mut db, "admins/alice", expected_json_1.into()); // IMPORTANT: this will create the collection
+    set!(&mut db, "users/alice", expected_json_1);
+    set!(&mut db, "admins/alice", expected_json_1); // IMPORTANT: this will create the collection
 
     // Set some documents in a collection using the macro again
     let collection = collection_mut!(&mut db, "users");
-    set!(collection, "bob", expected_json_2.into());
+    set!(collection, "bob", expected_json_2);
 
     // Check that the macros set the values correctly
     let resulting_json_1 = &db.collection("users").unwrap().get("alice").unwrap().json;

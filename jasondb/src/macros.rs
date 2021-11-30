@@ -23,13 +23,21 @@ impl DatabaseReadable for Collection {
     }
 }
 
-pub trait DatabaseWritable {
-    fn write(&mut self, path: &str, value: String);
+pub trait DatabaseWritable<K, V>
+where
+    K: AsRef<str>,
+    V: AsRef<str>,
+{
+    fn write(&mut self, path: K, value: V);
 }
 
-impl DatabaseWritable for Database {
-    fn write(&mut self, path: &str, value: String) {
-        let mut path_parts = path.split('/');
+impl<K, V> DatabaseWritable<K, V> for Database
+where
+    K: AsRef<str>,
+    V: AsRef<str>,
+{
+    fn write(&mut self, path: K, value: V) {
+        let mut path_parts = path.as_ref().split('/');
         let collection_id = path_parts.next().unwrap();
         let document_id = path_parts.next().unwrap();
 
@@ -44,8 +52,12 @@ impl DatabaseWritable for Database {
     }
 }
 
-impl DatabaseWritable for Collection {
-    fn write(&mut self, path: &str, value: String) {
+impl<K, V> DatabaseWritable<K, V> for Collection
+where
+    K: AsRef<str>,
+    V: AsRef<str>,
+{
+    fn write(&mut self, path: K, value: V) {
         self.set(path, value);
     }
 }

@@ -14,12 +14,11 @@ fn test_valid_json() {
     ];
 
     for json in &valid_json {
-        assert!(Document::new("test".to_string(), json.to_string()).is_some());
+        assert!(Document::new("test", json).is_some());
     }
 }
 
 #[test]
-#[cfg(feature = "validation")]
 fn test_invalid_json() {
     let invalid_json = [
         r#"{"name": "William Henderson}"#,
@@ -31,6 +30,6 @@ fn test_invalid_json() {
     ];
 
     for json in &invalid_json {
-        assert!(Document::new("test".to_string(), json.to_string()).is_none());
+        assert!(Document::new("test", json).is_none());
     }
 }
