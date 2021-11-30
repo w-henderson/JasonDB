@@ -4,6 +4,8 @@ use std::{error::Error, fmt::Display};
 #[cfg(feature = "validation")]
 use serde_json::{from_str, Value};
 
+use crate::id::generate_id;
+
 /// Struct representing the database as a whole.
 /// Contains the collections as well as its name.
 ///
@@ -163,6 +165,15 @@ impl Collection {
         } else {
             false
         }
+    }
+
+    /// Pushes a document to the end of the collection with a random chronological ID.
+    /// If the JSON is invalid, returns `false`.
+    /// If the document was successfully pushed, returns `true`.
+    pub fn push(&mut self, value: impl AsRef<str>) -> bool {
+        let id = generate_id();
+
+        self.set(id, value)
     }
 
     /// Removes a document from the collection.

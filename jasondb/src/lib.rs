@@ -2,6 +2,8 @@ pub mod database;
 pub mod isam;
 pub mod macros;
 
+mod id;
+
 pub mod prelude {
     pub use crate::macros::*;
     pub use crate::{collection, collection_mut, document, set};
