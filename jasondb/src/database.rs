@@ -12,7 +12,7 @@ use crate::id::generate_id;
 /// ## Example:
 /// ```rs
 /// let database = Database::new("myDatabase");
-/// database.createCollection("users");
+/// database.create_collection("users")?;
 /// database.collection("users").list() // returns an empty vec
 /// ```
 #[derive(Debug, PartialEq, Eq)]
