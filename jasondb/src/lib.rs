@@ -1,5 +1,11 @@
 pub mod database;
 pub mod isam;
+pub mod macros;
+
+pub mod prelude {
+    pub use crate::macros::*;
+    pub use crate::{collection, collection_mut, document, set};
+}
 
 #[cfg(test)]
 mod tests;
