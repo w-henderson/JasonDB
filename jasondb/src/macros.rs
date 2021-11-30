@@ -89,3 +89,10 @@ macro_rules! set {
         DatabaseWritable::write($root, $path, $value);
     };
 }
+
+#[macro_export]
+macro_rules! push {
+    ($root:expr, $path:expr, $value:expr) => {
+        $root.collection_mut($path).unwrap().push($value);
+    };
+}
