@@ -63,12 +63,16 @@ impl WritableArchive {
             let size_bytes = format!("{:01$o}", entry.data.len(), 11);
             entry_bytes[124..135].copy_from_slice(size_bytes.as_bytes());
 
+            // Write an empty time
+            entry_bytes[136..147].copy_from_slice(&[0x30; 11]);
+
             // Write the magic string
-            entry_bytes[257..262].copy_from_slice(b"ustar");
+            entry_bytes[257..264].copy_from_slice(b"ustar  ");
 
             // Write the checksum
-            let checksum = entry_bytes.iter().fold(0, |acc, &x| acc + x as u64);
-            let checksum_bytes = format!("{:01$o}", entry.data.len(), 7);
+            // During calculation checksum should be considered to be spaces, so add 256 to the total
+            let checksum = entry_bytes.iter().fold(0, |acc, &x| acc + x as u64) + 256;
+            let checksum_bytes = format!("{:01$o}", checksum, 7);
             entry_bytes[148..155].copy_from_slice(checksum_bytes.as_bytes());
 
             // Copy to the result
@@ -80,6 +84,9 @@ impl WritableArchive {
                 result.extend_from_slice(&vec![0; 512 - (entry.data.len() % 512)]);
             }
         }
+
+        // Add two empty blocks
+        result.extend_from_slice(&[0; 1024]);
 
         result
     }
