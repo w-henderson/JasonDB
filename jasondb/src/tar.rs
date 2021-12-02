@@ -74,7 +74,11 @@ impl WritableArchive {
             // Copy to the result
             result.extend_from_slice(&entry_bytes);
             result.extend_from_slice(&entry.data);
-            result.extend_from_slice(&vec![0; 512 - (entry.data.len() % 512)]); // pad
+
+            // Pad to 512 bytes
+            if entry.data.len() % 512 != 0 {
+                result.extend_from_slice(&vec![0; 512 - (entry.data.len() % 512)]);
+            }
         }
 
         result
