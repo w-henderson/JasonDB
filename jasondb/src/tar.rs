@@ -109,7 +109,7 @@ where
         // Extract key information
         let nul = buf[0..100].iter().position(|&b| b == 0).unwrap_or(100);
         let name = String::from_utf8(buf[0..nul].to_vec()).ok()?;
-        let length = u64::from_str_radix(std::str::from_utf8(&buf[124..136]).ok()?, 8).ok()?;
+        let length = u64::from_str_radix(std::str::from_utf8(&buf[124..135]).ok()?, 8).ok()?;
         let pointer = self.offset + 512;
 
         // Update the offset
