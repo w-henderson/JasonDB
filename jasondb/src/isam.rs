@@ -1,9 +1,9 @@
 use crate::database::Database;
+use crate::tar::{ReadableArchive, WritableArchive};
 
 use std::convert::TryInto;
 use std::fs::File;
-use std::io::{Read, Seek, SeekFrom};
-use tar::{Archive, Builder, Header};
+use std::io::{Read, Seek, SeekFrom, Write};
 
 #[derive(Debug)]
 struct Index {
@@ -36,7 +36,7 @@ pub fn load(filename: &str) -> Result<Database, Box<dyn std::error::Error>> {
     // Open the file and load the TAR archive
     let file = File::open(filename)?;
     let mut raw_file = File::open(filename)?;
-    let mut archive = Archive::new(file);
+    let archive = ReadableArchive::new(file);
 
     // Initialise the database object
     let mut database = Database::new(filename);
@@ -45,24 +45,18 @@ pub fn load(filename: &str) -> Result<Database, Box<dyn std::error::Error>> {
     let mut indexes: Vec<Index> = Vec::new();
 
     // Iterate over the files in the archive
-    for entry_result in archive.entries()? {
-        let mut entry = entry_result?;
-        let path = entry.path()?;
-        let name = path
-            .file_name()
-            .ok_or(ISAMError {})?
-            .to_str()
-            .ok_or(ISAMError {})?;
-
+    for entry in archive {
         if is_index {
             // If the file is an index file, load the indexes for when reading the corresponding data file
-            database.create_collection(&name[6..])?; // removes "INDEX_" prefix from index file
+            database.create_collection(&entry.name[6..])?; // removes "INDEX_" prefix from index file
 
-            let mut end_of_file = false;
-            while !end_of_file {
+            raw_file.seek(SeekFrom::Start(entry.pointer))?;
+
+            let mut bytes_read: u64 = 0;
+            while bytes_read < entry.length {
                 let mut buf: [u8; 80] = [0; 80]; // Read 80 bytes from the file
 
-                if let Ok(()) = entry.read_exact(&mut buf) {
+                if raw_file.read_exact(&mut buf).is_ok() {
                     let mut document_name = String::with_capacity(64);
                     let pointer = u64::from_be_bytes(buf[64..72].try_into()?);
                     let length = u64::from_be_bytes(buf[72..80].try_into()?);
@@ -80,24 +74,25 @@ pub fn load(filename: &str) -> Result<Database, Box<dyn std::error::Error>> {
                         start: pointer,
                         length,
                     });
+
+                    bytes_read += 80;
                 } else {
-                    end_of_file = true;
+                    return Err(Box::new(ISAMError));
                 };
             }
         } else {
             // If the file is a data file, load the cached indexes
 
-            let entry_offset = entry.raw_file_position();
             for index in indexes {
                 let mut buf: Vec<u8> = vec![0; index.length as usize];
-                raw_file.seek(SeekFrom::Start(entry_offset + index.start))?;
+                raw_file.seek(SeekFrom::Start(entry.pointer + index.start))?;
                 raw_file.read_exact(&mut buf)?;
 
                 let data = std::str::from_utf8(&buf)?;
 
                 // Add the data to the database
                 database
-                    .collection_mut(&name[5..])
+                    .collection_mut(&entry.name[5..])
                     .ok_or(ISAMError {})?
                     .set(&index.name, data.to_string());
             }
@@ -122,8 +117,8 @@ pub fn load(filename: &str) -> Result<Database, Box<dyn std::error::Error>> {
 /// isam::save("myDatabase", &db);
 /// ```
 pub fn save(filename: &str, database: &Database) {
-    let file = File::create(filename).unwrap();
-    let mut archive = Builder::new(file);
+    let mut file = File::create(filename).unwrap();
+    let mut archive = WritableArchive::new();
 
     for collection in database.get_collections() {
         let mut index_bytes: Vec<u8> = Vec::new();
@@ -144,30 +139,10 @@ pub fn save(filename: &str, database: &Database) {
             data_bytes.extend(document.json.as_bytes());
         }
 
-        let mut index_header = Header::new_gnu();
-        index_header.set_size(index_bytes.len() as u64);
-        index_header.set_cksum();
-
-        archive
-            .append_data(
-                &mut index_header,
-                format!("INDEX_{}", collection.name),
-                &*index_bytes,
-            )
-            .unwrap();
-
-        let mut data_header = Header::new_gnu();
-        data_header.set_size(data_bytes.len() as u64);
-        data_header.set_cksum();
-
-        archive
-            .append_data(
-                &mut data_header,
-                format!("DATA_{}", collection.name),
-                &*data_bytes,
-            )
-            .unwrap();
+        archive.add_entry(format!("INDEX_{}", collection.name), index_bytes);
+        archive.add_entry(format!("DATA_{}", collection.name), data_bytes);
     }
 
-    archive.finish().unwrap();
+    let serialized = archive.serialize();
+    file.write_all(&serialized).unwrap();
 }

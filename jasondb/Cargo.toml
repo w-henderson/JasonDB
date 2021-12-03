@@ -1,6 +1,6 @@
 [package]
 name = "jasondb"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2018"
 license = "MIT"
 homepage = "https://github.com/w-henderson/JasonDB"
@@ -13,7 +13,6 @@ categories = ["database", "database-implementations"]
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
-tar = { version = "0.4.33", default-features = false }
 serde = { version = "1.0", optional = true }
 serde_json = { version = "1.0", optional = true }
 

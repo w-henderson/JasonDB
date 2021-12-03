@@ -42,6 +42,7 @@ pub mod isam;
 pub mod macros;
 
 mod id;
+mod tar;
 
 /// Re-exports macros and the traits required to use them.
 pub mod prelude {
