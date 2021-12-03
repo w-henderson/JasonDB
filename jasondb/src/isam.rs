@@ -36,7 +36,7 @@ pub fn load(filename: &str) -> Result<Database, Box<dyn std::error::Error>> {
     // Open the file and load the TAR archive
     let file = File::open(filename)?;
     let mut raw_file = File::open(filename)?;
-    let mut archive = ReadableArchive::new(file);
+    let archive = ReadableArchive::new(file);
 
     // Initialise the database object
     let mut database = Database::new(filename);
@@ -56,7 +56,7 @@ pub fn load(filename: &str) -> Result<Database, Box<dyn std::error::Error>> {
             while bytes_read < entry.length {
                 let mut buf: [u8; 80] = [0; 80]; // Read 80 bytes from the file
 
-                if let Ok(_) = raw_file.read_exact(&mut buf) {
+                if raw_file.read_exact(&mut buf).is_ok() {
                     let mut document_name = String::with_capacity(64);
                     let pointer = u64::from_be_bytes(buf[64..72].try_into()?);
                     let length = u64::from_be_bytes(buf[72..80].try_into()?);
