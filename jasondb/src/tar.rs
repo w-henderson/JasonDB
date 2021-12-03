@@ -1,5 +1,6 @@
 use std::io::{Read, Seek, SeekFrom};
 
+/// Represents a readable USTAR archive.
 pub struct ReadableArchive<T>
 where
     T: Read + Seek,
@@ -8,18 +9,26 @@ where
     offset: u64,
 }
 
+/// Represents a writable USTAR archive.
 pub struct WritableArchive {
     entries: Vec<WriteEntry>,
 }
 
+/// Represents a single entry in a USTAR archive.
 pub struct ReadEntry {
+    /// The name or path of the file.
     pub name: String,
+    /// A pointer to the start of the file's data in the archive file.
     pub pointer: u64,
+    /// The length of the file's data.
     pub length: u64,
 }
 
+/// Represents a single entry to be written to a USTAR archive.
 pub struct WriteEntry {
+    /// The name or path of the file.
     name: String,
+    /// The data of the file.
     data: Vec<u8>,
 }
 
@@ -27,18 +36,24 @@ impl<T> ReadableArchive<T>
 where
     T: Read + Seek,
 {
+    /// Create a new readable archive from a readable source.
     pub fn new(source: T) -> Self {
         Self { source, offset: 0 }
     }
 }
 
 impl WritableArchive {
+    /// Create a new empty writable archive.
     pub fn new() -> Self {
         Self {
             entries: Vec::new(),
         }
     }
 
+    /// Add an entry to the archive with the given name and data.
+    ///
+    /// # Panics
+    /// This function will panic if the name is longer than 100 characters, as this is the maximum in the format.
     pub fn add_entry(&mut self, name: impl AsRef<str>, data: Vec<u8>) {
         if name.as_ref().len() > 100 {
             panic!("Name too long");
@@ -50,6 +65,7 @@ impl WritableArchive {
         });
     }
 
+    /// Serialise the archive to bytes.
     pub fn serialize(&self) -> Vec<u8> {
         let mut result: Vec<u8> = Vec::new();
 
