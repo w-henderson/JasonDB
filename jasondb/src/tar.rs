@@ -129,7 +129,7 @@ where
         let pointer = self.offset + 512;
 
         // Update the offset
-        self.offset += 512 + ((length + 512) / 512) * 512;
+        self.offset += 512 + ((length + 511) / 512) * 512;
 
         // Return the entry
         Some(Self::Item {
