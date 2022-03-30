@@ -5,3 +5,6 @@ edition = "2021"
 
 [dependencies]
 humphrey_json = "0.1.0"
+
+[lib]
+doctest = false
