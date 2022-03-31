@@ -8,6 +8,10 @@ pub enum JasonError {
     Io,
     /// The index was corrupt or out of bounds.
     Index,
+    /// The key was invalid or not found.
+    InvalidKey,
+    /// The JSON value was invalid.
+    JsonError,
     /// An unknown error occurred.
     Unknown,
 }

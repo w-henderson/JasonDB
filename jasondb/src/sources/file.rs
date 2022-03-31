@@ -1,5 +1,6 @@
 use crate::error::JasonError;
 use crate::sources::Source;
+use crate::util::quiet_assert;
 
 use std::collections::HashMap;
 use std::fs::{self, File, OpenOptions};
@@ -21,13 +22,26 @@ impl FileSource {
             .open(&path)
             .map_err(|_| JasonError::Io)?;
 
-        let len = file.metadata().map_err(|_| JasonError::Io)?.len();
+        let meta = file.metadata().map_err(|_| JasonError::Io)?;
+        let len = meta.len();
+
+        quiet_assert(meta.is_file(), JasonError::Io)?;
 
         Ok(Self {
             file,
             path: path.as_ref().to_path_buf(),
             len,
         })
+    }
+
+    pub fn create(path: impl AsRef<Path>) -> Result<Self, JasonError> {
+        quiet_assert(!path.as_ref().exists(), JasonError::Io)?;
+        Self::new(path)
+    }
+
+    pub fn open(path: impl AsRef<Path>) -> Result<Self, JasonError> {
+        quiet_assert(path.as_ref().exists(), JasonError::Io)?;
+        Self::new(path)
     }
 
     fn load_size(&mut self, offset: u64) -> Result<u64, JasonError> {
