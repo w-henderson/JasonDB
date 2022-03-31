@@ -122,7 +122,7 @@ impl Source for FileSource {
     }
 
     fn compact(&mut self, indexes: &HashMap<String, u64>) -> Result<(), JasonError> {
-        let temp_path = self.path.with_file_name("__jdb_temp");
+        let temp_path = self.path.with_extension("jdbtmp");
         if temp_path.exists() {
             fs::remove_file(&temp_path).map_err(|_| JasonError::Io)?;
         }
@@ -150,8 +150,7 @@ impl Source for FileSource {
 
         drop(new_file);
 
-        fs::rename(&self.path, self.path.with_file_name("__jdb_old"))
-            .map_err(|_| JasonError::Io)?;
+        fs::rename(&self.path, self.path.with_extension("jdbold")).map_err(|_| JasonError::Io)?;
         fs::rename(&temp_path, &self.path).map_err(|_| JasonError::Io)?;
 
         let new_file = OpenOptions::new()
@@ -163,7 +162,7 @@ impl Source for FileSource {
         let _old_file = std::mem::replace(&mut self.file, new_file);
         self.len = new_len;
 
-        fs::remove_file(self.path.with_file_name("__jdb_old")).map_err(|_| JasonError::Io)?;
+        fs::remove_file(self.path.with_extension("jdbold")).map_err(|_| JasonError::Io)?;
 
         Ok(())
     }
