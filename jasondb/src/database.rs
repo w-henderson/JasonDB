@@ -40,15 +40,27 @@ where
             .get(key.as_ref())
             .ok_or(JasonError::InvalidKey)?;
         let json = unsafe { String::from_utf8_unchecked(self.source.read_entry(*index)?) };
-        let value: T = humphrey_json::from_str(json).map_err(|_| JasonError::JsonError)?;
 
-        Ok(value)
+        if json == "null" {
+            Err(JasonError::InvalidKey)
+        } else {
+            Ok(humphrey_json::from_str(json).map_err(|_| JasonError::JsonError)?)
+        }
     }
 
     pub fn set(&mut self, key: impl AsRef<str>, value: impl Borrow<T>) -> Result<(), JasonError> {
         let json = humphrey_json::to_string(value.borrow());
         let index = self.source.write_entry(key.as_ref(), json.as_bytes())?;
         self.indexes.insert(key.as_ref().to_string(), index);
+
+        Ok(())
+    }
+
+    pub fn delete(&mut self, key: impl AsRef<str>) -> Result<(), JasonError> {
+        self.indexes
+            .remove(key.as_ref())
+            .ok_or(JasonError::InvalidKey)?;
+        self.source.write_entry(key.as_ref(), "null")?;
 
         Ok(())
     }

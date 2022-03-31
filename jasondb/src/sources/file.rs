@@ -105,12 +105,16 @@ impl Source for FileSource {
 
         while offset < self.len {
             let (k, v_index) = self.load_value(offset)?;
-            let new_offset = v_index + self.load_size(v_index)? + 8;
+            let (v, new_offset) = self.load_value(v_index)?;
 
-            indexes.insert(
-                unsafe { String::from_utf8_unchecked(k.to_vec()) },
-                offset as u64,
-            );
+            let key = unsafe { String::from_utf8_unchecked(k.to_vec()) };
+
+            if v == b"null" {
+                indexes.remove(&key);
+            } else {
+                indexes.insert(key, offset as u64);
+            }
+
             offset = new_offset;
         }
 

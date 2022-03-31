@@ -43,12 +43,16 @@ impl Source for InMemory {
 
         while offset < self.data.len() {
             let (k, v_index) = load_value(&self.data, offset as u64)?;
-            let (_, new_offset) = load_value(&self.data, v_index as u64)?;
+            let (v, new_offset) = load_value(&self.data, v_index as u64)?;
 
-            indexes.insert(
-                unsafe { String::from_utf8_unchecked(k.to_vec()) },
-                offset as u64,
-            );
+            let key = unsafe { String::from_utf8_unchecked(k.to_vec()) };
+
+            if v == b"null" {
+                indexes.remove(&key);
+            } else {
+                indexes.insert(key, offset as u64);
+            }
+
             offset = new_offset;
         }
 
