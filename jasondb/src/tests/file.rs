@@ -27,9 +27,11 @@ fn read_write() {
 fn load_indexes() {
     let mut database = FileSource::new("test_load_indexes.jdb").unwrap();
 
-    let _ = database.write_entry("key1", "this is a value").unwrap();
+    database.write_entry("key1", "this is a value").unwrap();
     let index_2 = database.write_entry("key2", "value 2").unwrap();
     let index_3 = database.write_entry("key1", "overwritten!").unwrap();
+    database.write_entry("key3", "not null").unwrap();
+    database.write_entry("key3", "null").unwrap();
 
     let indexes = database.load_indexes().unwrap();
 
@@ -48,6 +50,8 @@ fn compact() {
     database.write_entry("key1", "this is a value").unwrap();
     database.write_entry("key2", "value 2").unwrap();
     database.write_entry("key1", "overwritten!").unwrap();
+    database.write_entry("key3", "not null").unwrap();
+    database.write_entry("key3", "null").unwrap();
 
     let indexes = database.load_indexes().unwrap();
 
