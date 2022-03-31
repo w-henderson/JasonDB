@@ -1,12 +1,12 @@
 <div align="center">
-  <img src="https://raw.githubusercontent.com/w-henderson/JasonDB/master/assets/icon.png" width=150>
+  <img src="https://raw.githubusercontent.com/w-henderson/JasonDB/legacy/assets/icon.png" width=150>
 
   <h3 align="center">JasonDB</h3>
 
   <p align="center">
     A JSON-Based Database Management System for the Web.<br><br>
-    <a href="https://github.com/w-henderson/JasonDB/blob/master/jasondb/README.md">Core Quickstart</a> ·
-    <a href="https://github.com/w-henderson/Humphrey/blob/master/jasondb-server/README.md">Server Quickstart</a><br>
+    <a href="https://github.com/w-henderson/JasonDB/blob/legacy/jasondb/README.md">Core Quickstart</a> ·
+    <a href="https://github.com/w-henderson/JasonDB/blob/legacy/jasondb-server/README.md">Server Quickstart</a><br>
     <a href="https://docs.rs/jasondb">Core API Reference</a>
   </p><br>
 

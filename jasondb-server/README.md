@@ -68,14 +68,14 @@ As JasonDB was inspired by Redis, it makes sense to benchmark one against the ot
 The GET performance was benchmarked against Redis with different numbers of connected clients. The graph below shows the requests per second (in thousands) against the number of clients for both JasonDB and Redis. It clearly shows that JasonDB consistently beats Redis, especially when there are many clients connected thanks to Rust's `Tokio` asynchronous programming interface.
 
 <p align="center">
-    <img src="https://raw.githubusercontent.com/w-henderson/JasonDB/master/assets/get_benchmark.png" width=400>
+    <img src="https://raw.githubusercontent.com/w-henderson/JasonDB/legacy/assets/get_benchmark.png" width=400>
 </p>
 
 ### SET Performance
 The SET performance was measured in the same way, with different numbers of clients testing its multi-threaded capabilities. SET requests should, technically speaking, be slower, as the `RwLock` must be written to which can only happen from one thread at once. However, thanks to optimisations minimising the amount of instructions the thread processes when the database is locked, this hardly affects the speed. As a result of this, the database can handle a similar number of GET and SET operations per second.
 
 <p align="center">
-    <img src="https://raw.githubusercontent.com/w-henderson/JasonDB/master/assets/set_benchmark.png" width=400>
+    <img src="https://raw.githubusercontent.com/w-henderson/JasonDB/legacy/assets/set_benchmark.png" width=400>
 </p>
 
 ### Pipelined Performance
@@ -84,7 +84,7 @@ One of the reasons Redis is so fast is due to its ability to pipeline commands -
 The graph below shows the number of pipelined commands per request against how many requests the database was able to handle per second, measured in thousands. It's clear that JasonDB's implementation is much faster than Redis', allowing it to reach nearly 800,000 requests per second with 100 pipelined commands. This benchmark was performed single-threaded.
 
 <p align="center">
-    <img src="https://raw.githubusercontent.com/w-henderson/JasonDB/master/assets/pipeline_benchmark.png" width=400>
+    <img src="https://raw.githubusercontent.com/w-henderson/JasonDB/legacy/assets/pipeline_benchmark.png" width=400>
 </p>
 
 ## CLI Reference

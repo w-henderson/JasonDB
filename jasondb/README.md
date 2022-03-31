@@ -35,4 +35,4 @@ fn main() {
 ```
 
 ## Further Examples
-- [Message Board Example](https://github.com/w-henderson/Humphrey/tree/master/examples/database): A simple example of integrating JasonDB with a web application.
+- [Message Board Example](https://github.com/w-henderson/Humphrey/tree/legacy/examples/database): A simple example of integrating JasonDB with a web application.
