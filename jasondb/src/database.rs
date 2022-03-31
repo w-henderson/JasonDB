@@ -4,6 +4,7 @@ use crate::sources::{FileSource, Source};
 use humphrey_json::prelude::*;
 
 use std::borrow::Borrow;
+use std::collections::hash_map::IntoIter;
 use std::collections::HashMap;
 use std::marker::PhantomData;
 
@@ -35,11 +36,16 @@ where
     }
 
     pub fn get(&mut self, key: impl AsRef<str>) -> Result<T, JasonError> {
-        let index = self
+        let index = *self
             .indexes
             .get(key.as_ref())
             .ok_or(JasonError::InvalidKey)?;
-        let json = unsafe { String::from_utf8_unchecked(self.source.read_entry(*index)?) };
+
+        self.get_at_index(index)
+    }
+
+    fn get_at_index(&mut self, index: u64) -> Result<T, JasonError> {
+        let json = unsafe { String::from_utf8_unchecked(self.source.read_entry(index)?) };
 
         if json == "null" {
             Err(JasonError::InvalidKey)
@@ -63,5 +69,38 @@ where
         self.source.write_entry(key.as_ref(), "null")?;
 
         Ok(())
+    }
+
+    pub fn iter(&mut self) -> Iter<T, S> {
+        let keys = self.indexes.clone().into_iter();
+
+        Iter {
+            database: self,
+            keys,
+        }
+    }
+}
+
+pub struct Iter<'a, T, S>
+where
+    T: IntoJson + FromJson,
+    S: Source,
+{
+    database: &'a mut Database<T, S>,
+    keys: IntoIter<String, u64>,
+}
+
+impl<'a, T, S> Iterator for Iter<'a, T, S>
+where
+    T: IntoJson + FromJson,
+    S: Source,
+{
+    type Item = Result<(String, T), JasonError>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        let (key, index) = self.keys.next()?;
+        let value = self.database.get_at_index(index);
+
+        Some(value.map(|v| (key, v)))
     }
 }
