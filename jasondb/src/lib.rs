@@ -1,4 +1,5 @@
 mod database;
+mod error;
 pub mod sources;
 mod util;
 

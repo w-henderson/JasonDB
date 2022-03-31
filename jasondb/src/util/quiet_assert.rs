@@ -1,9 +1,9 @@
-use std::error::Error;
+use crate::error::JasonError;
 
-pub fn quiet_assert(condition: bool) -> Result<(), Box<dyn Error>> {
+pub fn quiet_assert(condition: bool, e: JasonError) -> Result<(), JasonError> {
     if condition {
         Ok(())
     } else {
-        Err("Assertion failed".into())
+        Err(e)
     }
 }

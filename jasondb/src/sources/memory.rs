@@ -1,8 +1,8 @@
+use crate::error::JasonError;
 use crate::sources::Source;
 use crate::util::quiet_assert;
 
 use std::collections::HashMap;
-use std::error::Error;
 
 #[derive(Default)]
 pub struct InMemory {
@@ -16,18 +16,14 @@ impl InMemory {
 }
 
 impl Source for InMemory {
-    fn read_entry(&mut self, offset: u64) -> Result<Vec<u8>, Box<dyn Error>> {
+    fn read_entry(&mut self, offset: u64) -> Result<Vec<u8>, JasonError> {
         let (_, v_index) = load_value(&self.data, offset)?;
         let (v, _) = load_value(&self.data, v_index as u64)?;
 
         Ok(v.to_vec())
     }
 
-    fn write_entry(
-        &mut self,
-        k: impl AsRef<str>,
-        v: impl AsRef<[u8]>,
-    ) -> Result<u64, Box<dyn Error>> {
+    fn write_entry(&mut self, k: impl AsRef<str>, v: impl AsRef<[u8]>) -> Result<u64, JasonError> {
         let k = k.as_ref();
         let v = v.as_ref();
         let size = k.len() + v.len() + 16;
@@ -41,7 +37,7 @@ impl Source for InMemory {
         Ok((self.data.len() - size) as u64)
     }
 
-    fn load_indexes(&mut self) -> Result<HashMap<String, u64>, Box<dyn Error>> {
+    fn load_indexes(&mut self) -> Result<HashMap<String, u64>, JasonError> {
         let mut indexes: HashMap<String, u64> = HashMap::new();
         let mut offset = 0;
 
@@ -59,11 +55,11 @@ impl Source for InMemory {
         Ok(indexes)
     }
 
-    fn compact(&mut self, indexes: &HashMap<String, u64>) -> Result<(), Box<dyn Error>> {
+    fn compact(&mut self, indexes: &HashMap<String, u64>) -> Result<(), JasonError> {
         let mut new_data = Vec::new();
 
         for &start_index in indexes.values() {
-            let start_index: usize = start_index.try_into()?;
+            let start_index: usize = start_index.try_into().map_err(|_| JasonError::Index)?;
             let (_, v_index) = load_value(&self.data, start_index as u64)?;
             let (_, end_index) = load_value(&self.data, v_index as u64)?;
 
@@ -76,12 +72,18 @@ impl Source for InMemory {
     }
 }
 
-fn load_value(data: &[u8], offset: u64) -> Result<(&[u8], usize), Box<dyn Error>> {
-    let offset: usize = offset.try_into()?;
+fn load_value(data: &[u8], offset: u64) -> Result<(&[u8], usize), JasonError> {
+    let offset: usize = offset.try_into().map_err(|_| JasonError::Index)?;
 
-    quiet_assert(offset + 8 <= data.len())?;
-    let size: usize = u64::from_le_bytes(data[offset..offset + 8].try_into()?).try_into()?;
-    quiet_assert(offset + 8 + size <= data.len())?;
+    quiet_assert(offset + 8 <= data.len(), JasonError::Index)?;
+    let size: usize = u64::from_le_bytes(
+        data[offset..offset + 8]
+            .try_into()
+            .map_err(|_| JasonError::Index)?,
+    )
+    .try_into()
+    .map_err(|_| JasonError::Index)?;
+    quiet_assert(offset + 8 + size <= data.len(), JasonError::Index)?;
     let data = &data[offset + 8..offset + 8 + size];
 
     Ok((data, offset + 8 + size))
