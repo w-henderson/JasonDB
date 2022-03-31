@@ -2,8 +2,8 @@ use humphrey_json::prelude::*;
 
 #[derive(Debug, PartialEq, Eq)]
 pub struct Person {
-    name: String,
-    year_of_birth: u16,
+    pub(crate) name: String,
+    pub(crate) year_of_birth: u16,
 }
 
 impl Person {
