@@ -38,64 +38,69 @@ impl Query {
         T: IntoJson + FromJson,
         S: Source,
     {
-        match self.predicate_combination {
-            PredicateCombination::And => {
-                // Check to see if a secondary index can be used to optimise this query
-                let mut optimised_index = None;
-                for predicate in &self.predicates {
-                    let predicate_key = predicate.key();
-                    if database.secondary_indexes.contains_key(predicate_key) {
-                        optimised_index = Some(predicate_key);
-                        break;
-                    }
-                }
+        let first_predicate_key = self.predicates[0].key();
 
-                // If an optimisation was found, use it
-                if let Some(optimised_index) = optimised_index {
-                    let mut indexes: Vec<u64> = Vec::new();
-                    let optimised_index = database.secondary_indexes.get(optimised_index).unwrap();
+        let optimisable = database.secondary_indexes.contains_key(first_predicate_key)
+            && self
+                .predicates
+                .iter()
+                .map(|p| p.key())
+                .all(|k| k == first_predicate_key);
 
-                    if self.predicates.len() == 1 {
-                        if let Predicate::Eq(_, value) = &self.predicates[0] {
-                            indexes = optimised_index.get(value).unwrap_or(&Vec::new()).to_vec();
-                            return Ok(Iter {
-                                database,
-                                keys: indexes.into_iter(),
-                            });
-                        }
-                    }
+        if optimisable {
+            self.execute_optimised(database)
+        } else {
+            self.execute_unoptimised(database)
+        }
+    }
 
-                    for (k, v) in optimised_index {
-                        if self.matches(k)? {
-                            indexes.extend(v.iter());
-                        }
-                    }
+    pub fn execute_optimised<'a, T, S>(
+        &self,
+        database: &'a mut Database<T, S>,
+    ) -> Result<Iter<'a, T, S>, JasonError>
+    where
+        T: IntoJson + FromJson,
+        S: Source,
+    {
+        let mut indexes = Vec::new();
 
-                    return Ok(Iter {
-                        database,
-                        keys: indexes.into_iter(),
-                    });
-                }
-            }
+        let secondary_index = database
+            .secondary_indexes
+            .get(self.predicates[0].key())
+            .ok_or(JasonError::JsonError)?;
 
-            PredicateCombination::Or => {
-                // TODO: implement this optimisation
+        for (value, value_indexes) in secondary_index {
+            if self.matches_direct(value)? {
+                indexes.extend(value_indexes);
             }
         }
 
-        // No optimisation available so linear search is the only option.
+        Ok(Iter {
+            database,
+            keys: indexes.into_iter(),
+        })
+    }
+
+    pub fn execute_unoptimised<'a, T, S>(
+        &self,
+        database: &'a mut Database<T, S>,
+    ) -> Result<Iter<'a, T, S>, JasonError>
+    where
+        T: IntoJson + FromJson,
+        S: Source,
+    {
         let mut indexes = Vec::new();
-        let possible_indexes = database
+        let keys = database
             .primary_indexes
             .values()
             .cloned()
             .collect::<Vec<_>>();
 
-        for index in possible_indexes {
-            let value = database.get_at_index(index)?.1.to_json();
+        for key in &keys {
+            let (_, v) = database.get_at_index(*key)?;
 
-            if self.matches(&value)? {
-                indexes.push(index);
+            if self.matches(&v.to_json())? {
+                indexes.push(key.to_owned());
             }
         }
 
@@ -118,6 +123,27 @@ impl Query {
             PredicateCombination::Or => {
                 for predicate in &self.predicates {
                     if predicate.matches(json)? {
+                        return Ok(true);
+                    }
+                }
+                Ok(false)
+            }
+        }
+    }
+
+    pub fn matches_direct(&self, json: &Value) -> Result<bool, JasonError> {
+        match self.predicate_combination {
+            PredicateCombination::And => {
+                for predicate in &self.predicates {
+                    if !predicate.matches_direct(json)? {
+                        return Ok(false);
+                    }
+                }
+                Ok(true)
+            }
+            PredicateCombination::Or => {
+                for predicate in &self.predicates {
+                    if predicate.matches_direct(json)? {
                         return Ok(true);
                     }
                 }
@@ -150,6 +176,28 @@ impl Predicate {
                 let left = indexing::get_value(index, json)?;
                 Ok(left == *right)
             }
+        }
+    }
+
+    pub fn matches_direct(&self, json: &Value) -> Result<bool, JasonError> {
+        match self {
+            Self::Gt(_, right) => {
+                let left = json.as_number().ok_or(JasonError::JsonError)?;
+                Ok(left > *right)
+            }
+            Self::Gte(_, right) => {
+                let left = json.as_number().ok_or(JasonError::JsonError)?;
+                Ok(left >= *right)
+            }
+            Self::Lt(_, right) => {
+                let left = json.as_number().ok_or(JasonError::JsonError)?;
+                Ok(left < *right)
+            }
+            Self::Lte(_, right) => {
+                let left = json.as_number().ok_or(JasonError::JsonError)?;
+                Ok(left <= *right)
+            }
+            Self::Eq(_, right) => Ok(*json == *right),
         }
     }
 
@@ -245,4 +293,11 @@ macro_rules! query {
             $crate::query::Value::Bool(true),
         ))
     };
+}
+
+#[macro_export]
+macro_rules! field {
+    ($($field:ident).+) => {
+        stringify!($($field).+).to_string()
+    }
 }

@@ -40,6 +40,16 @@ where
         })
     }
 
+    pub fn index_on(mut self, field: impl AsRef<str>) -> Result<Self, JasonError> {
+        let field = field.as_ref().to_string();
+
+        let indexes = self.source.index_on(&field, &self.primary_indexes)?;
+
+        self.secondary_indexes.insert(field, indexes);
+
+        Ok(self)
+    }
+
     pub fn get(&mut self, key: impl AsRef<str>) -> Result<T, JasonError> {
         let index = *self
             .primary_indexes

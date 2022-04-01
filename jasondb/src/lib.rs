@@ -1,10 +1,10 @@
 mod database;
-mod error;
+pub mod error;
 pub mod sources;
 mod util;
 
 #[macro_use]
-mod query;
+pub mod query;
 
 #[cfg(test)]
 mod tests;
