@@ -1,5 +1,7 @@
 use crate::error::JasonError;
+use crate::query::Query;
 use crate::sources::{FileSource, Source};
+use crate::util::indexing;
 
 use humphrey_json::prelude::*;
 use humphrey_json::Value;
@@ -47,7 +49,7 @@ where
         Ok(self.get_at_index(index)?.1)
     }
 
-    fn get_at_index(&mut self, index: u64) -> Result<(String, T), JasonError> {
+    pub(crate) fn get_at_index(&mut self, index: u64) -> Result<(String, T), JasonError> {
         let (k, v) = self.source.read_entry(index)?;
         let json = unsafe { String::from_utf8_unchecked(v) };
 
@@ -66,16 +68,40 @@ where
         let index = self.source.write_entry(key.as_ref(), json.as_bytes())?;
         self.primary_indexes.insert(key.as_ref().to_string(), index);
 
+        for (index_path, indexes) in &mut self.secondary_indexes {
+            let indexed_value = indexing::get_value(index_path, &value.borrow().to_json())?;
+            indexes
+                .entry(indexed_value)
+                .or_insert_with(Vec::new)
+                .push(index);
+        }
+
         Ok(())
     }
 
     pub fn delete(&mut self, key: impl AsRef<str>) -> Result<(), JasonError> {
-        self.primary_indexes
+        let index = self
+            .primary_indexes
             .remove(key.as_ref())
             .ok_or(JasonError::InvalidKey)?;
+
+        let value = self.get_at_index(index)?.1.to_json();
+
+        for (index_path, indexes) in &mut self.secondary_indexes {
+            let indexed_value = indexing::get_value(index_path, &value)?;
+            indexes
+                .get_mut(&indexed_value)
+                .ok_or(JasonError::InvalidKey)?
+                .retain(|i| *i != index);
+        }
+
         self.source.write_entry(key.as_ref(), "null")?;
 
         Ok(())
+    }
+
+    pub fn query(&mut self, query: Query) -> Result<Iter<T, S>, JasonError> {
+        query.execute(self)
     }
 
     pub fn iter(&mut self) -> Iter<T, S> {
@@ -98,8 +124,8 @@ where
     T: IntoJson + FromJson,
     S: Source,
 {
-    database: &'a mut Database<T, S>,
-    keys: IntoIter<u64>,
+    pub(crate) database: &'a mut Database<T, S>,
+    pub(crate) keys: IntoIter<u64>,
 }
 
 impl<'a, T, S> Iterator for Iter<'a, T, S>
