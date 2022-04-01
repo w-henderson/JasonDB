@@ -1,6 +1,8 @@
 use crate::error::JasonError;
 use crate::sources::Source;
-use crate::util::quiet_assert;
+use crate::util::{indexing, quiet_assert};
+
+use humphrey_json::Value;
 
 use std::collections::HashMap;
 
@@ -54,6 +56,25 @@ impl Source for InMemory {
             }
 
             offset = new_offset;
+        }
+
+        Ok(indexes)
+    }
+
+    fn index_on(
+        &mut self,
+        k: impl AsRef<str>,
+        primary_indexes: &HashMap<String, u64>,
+    ) -> Result<HashMap<Value, Vec<u64>>, JasonError> {
+        let mut indexes: HashMap<Value, Vec<u64>> = HashMap::new();
+
+        for i in primary_indexes.values() {
+            let v = self.read_entry(*i)?;
+            let json = unsafe { String::from_utf8_unchecked(v) };
+            let value = Value::parse(json).map_err(|_| JasonError::JsonError)?;
+            let indexed_value = indexing::get_value(k.as_ref(), &value)?;
+
+            indexes.entry(indexed_value).or_insert(vec![]).push(*i);
         }
 
         Ok(indexes)

@@ -1,5 +1,7 @@
 use crate::sources::{InMemory, Source};
 
+use humphrey_json::prelude::*;
+
 #[test]
 fn read_write() {
     let mut database = InMemory::new();
@@ -52,4 +54,45 @@ fn compact() {
         database.data == b"\x04\0\0\0\0\0\0\0key2\x07\0\0\0\0\0\0\0value 2\x04\0\0\0\0\0\0\0key1\x0c\0\0\0\0\0\0\0overwritten!" ||
         database.data == b"\x04\0\0\0\0\0\0\0key1\x0c\0\0\0\0\0\0\0overwritten!\x04\0\0\0\0\0\0\0key2\x07\0\0\0\0\0\0\0value 2"
     );
+}
+
+#[test]
+fn index_on() -> Result<(), Box<dyn std::error::Error>> {
+    let mut database = InMemory::new();
+
+    let elizabeth_ii = database.write_entry(
+        "elizabeth_ii",
+        json!({"name": "Elizabeth II", "yearOfBirth": 1926, "gender": "female"}).serialize(),
+    )?;
+
+    let george_vi = database.write_entry(
+        "george_vi",
+        json!({"name": "George VI", "yearOfBirth": 1895, "gender": "male"}).serialize(),
+    )?;
+
+    let edward_viii = database.write_entry(
+        "edward_viii",
+        json!({"name": "Edward VIII", "yearOfBirth": 1894, "gender": "male"}).serialize(),
+    )?;
+
+    let indexes = database.load_indexes()?;
+    let index_on_gender = database.index_on("gender", &indexes)?;
+    let index_on_year = database.index_on("yearOfBirth", &indexes)?;
+
+    let men = index_on_gender.get(&json!("male")).unwrap();
+    assert_eq!(men.len(), 2);
+    assert!(men.contains(&george_vi));
+    assert!(men.contains(&edward_viii));
+    assert!(!men.contains(&elizabeth_ii));
+
+    let women = index_on_gender.get(&json!("female")).unwrap();
+    assert_eq!(*women, vec![elizabeth_ii]);
+
+    let born_in_1895 = index_on_year.get(&json!(1895)).unwrap();
+    assert_eq!(*born_in_1895, vec![george_vi]);
+
+    let born_in_1900 = index_on_year.get(&json!(1900));
+    assert!(born_in_1900.is_none());
+
+    Ok(())
 }
