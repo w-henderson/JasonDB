@@ -29,8 +29,8 @@ fn basic() -> Result<(), JasonError> {
 
     let old_len = database.source.data.len();
 
-    database.source.compact(&database.indexes)?;
-    database.indexes = database.source.load_indexes()?;
+    database.source.compact(&database.primary_indexes)?;
+    database.primary_indexes = database.source.load_indexes()?;
 
     assert_eq!(database.iter().count(), 3);
     assert!(database.source.data.len() < old_len);
@@ -50,8 +50,8 @@ fn delete() -> Result<(), JasonError> {
     assert_eq!(database.iter().count(), 0);
     assert!(!database.source.data.is_empty());
 
-    database.source.compact(&database.indexes)?;
-    database.indexes = database.source.load_indexes()?;
+    database.source.compact(&database.primary_indexes)?;
+    database.primary_indexes = database.source.load_indexes()?;
 
     assert_eq!(database.iter().count(), 0);
     assert_eq!(database.source.data.len(), 0);

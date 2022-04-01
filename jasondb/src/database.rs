@@ -2,18 +2,20 @@ use crate::error::JasonError;
 use crate::sources::{FileSource, Source};
 
 use humphrey_json::prelude::*;
+use humphrey_json::Value;
 
 use std::borrow::Borrow;
-use std::collections::hash_map::IntoIter;
 use std::collections::HashMap;
 use std::marker::PhantomData;
+use std::vec::IntoIter;
 
 pub struct Database<T, S = FileSource>
 where
     T: IntoJson + FromJson,
     S: Source,
 {
-    pub(crate) indexes: HashMap<String, u64>,
+    pub(crate) primary_indexes: HashMap<String, u64>,
+    pub(crate) secondary_indexes: HashMap<String, HashMap<Value, Vec<u64>>>,
     pub(crate) source: S,
     marker: PhantomData<T>,
 }
@@ -29,7 +31,8 @@ where
         let indexes = source.load_indexes()?;
 
         Ok(Self {
-            indexes,
+            primary_indexes: indexes,
+            secondary_indexes: HashMap::new(),
             source,
             marker: PhantomData,
         })
@@ -37,33 +40,37 @@ where
 
     pub fn get(&mut self, key: impl AsRef<str>) -> Result<T, JasonError> {
         let index = *self
-            .indexes
+            .primary_indexes
             .get(key.as_ref())
             .ok_or(JasonError::InvalidKey)?;
 
-        self.get_at_index(index)
+        Ok(self.get_at_index(index)?.1)
     }
 
-    fn get_at_index(&mut self, index: u64) -> Result<T, JasonError> {
-        let json = unsafe { String::from_utf8_unchecked(self.source.read_entry(index)?) };
+    fn get_at_index(&mut self, index: u64) -> Result<(String, T), JasonError> {
+        let (k, v) = self.source.read_entry(index)?;
+        let json = unsafe { String::from_utf8_unchecked(v) };
 
         if json == "null" {
             Err(JasonError::InvalidKey)
         } else {
-            Ok(humphrey_json::from_str(json).map_err(|_| JasonError::JsonError)?)
+            Ok((
+                k,
+                humphrey_json::from_str(json).map_err(|_| JasonError::JsonError)?,
+            ))
         }
     }
 
     pub fn set(&mut self, key: impl AsRef<str>, value: impl Borrow<T>) -> Result<(), JasonError> {
         let json = humphrey_json::to_string(value.borrow());
         let index = self.source.write_entry(key.as_ref(), json.as_bytes())?;
-        self.indexes.insert(key.as_ref().to_string(), index);
+        self.primary_indexes.insert(key.as_ref().to_string(), index);
 
         Ok(())
     }
 
     pub fn delete(&mut self, key: impl AsRef<str>) -> Result<(), JasonError> {
-        self.indexes
+        self.primary_indexes
             .remove(key.as_ref())
             .ok_or(JasonError::InvalidKey)?;
         self.source.write_entry(key.as_ref(), "null")?;
@@ -72,7 +79,12 @@ where
     }
 
     pub fn iter(&mut self) -> Iter<T, S> {
-        let keys = self.indexes.clone().into_iter();
+        let keys = self
+            .primary_indexes
+            .values()
+            .cloned()
+            .collect::<Vec<_>>()
+            .into_iter();
 
         Iter {
             database: self,
@@ -87,7 +99,7 @@ where
     S: Source,
 {
     database: &'a mut Database<T, S>,
-    keys: IntoIter<String, u64>,
+    keys: IntoIter<u64>,
 }
 
 impl<'a, T, S> Iterator for Iter<'a, T, S>
@@ -98,9 +110,9 @@ where
     type Item = Result<(String, T), JasonError>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        let (key, index) = self.keys.next()?;
+        let index = self.keys.next()?;
         let value = self.database.get_at_index(index);
 
-        Some(value.map(|v| (key, v)))
+        Some(value)
     }
 }

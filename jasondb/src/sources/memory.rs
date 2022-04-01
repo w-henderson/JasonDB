@@ -18,11 +18,14 @@ impl InMemory {
 }
 
 impl Source for InMemory {
-    fn read_entry(&mut self, offset: u64) -> Result<Vec<u8>, JasonError> {
-        let (_, v_index) = load_value(&self.data, offset)?;
+    fn read_entry(&mut self, offset: u64) -> Result<(String, Vec<u8>), JasonError> {
+        let (k, v_index) = load_value(&self.data, offset)?;
         let (v, _) = load_value(&self.data, v_index as u64)?;
 
-        Ok(v.to_vec())
+        Ok((
+            unsafe { String::from_utf8_unchecked(k.to_vec()) },
+            v.to_vec(),
+        ))
     }
 
     fn write_entry(&mut self, k: impl AsRef<str>, v: impl AsRef<[u8]>) -> Result<u64, JasonError> {
@@ -69,7 +72,7 @@ impl Source for InMemory {
         let mut indexes: HashMap<Value, Vec<u64>> = HashMap::new();
 
         for i in primary_indexes.values() {
-            let v = self.read_entry(*i)?;
+            let (_, v) = self.read_entry(*i)?;
             let json = unsafe { String::from_utf8_unchecked(v) };
             let value = Value::parse(json).map_err(|_| JasonError::JsonError)?;
             let indexed_value = indexing::get_value(k.as_ref(), &value)?;

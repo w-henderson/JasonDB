@@ -15,10 +15,9 @@ fn read_write() {
     let value_1 = database.read_entry(index_1).unwrap();
     let value_2 = database.read_entry(index_2).unwrap();
 
-    assert_eq!(value_1, "this is a value".as_bytes());
-    assert_eq!(value_2, "value 2".as_bytes());
+    assert_eq!(value_1, ("key1".to_string(), b"this is a value".to_vec()));
+    assert_eq!(value_2, ("key2".to_string(), b"value 2".to_vec()));
 
-    assert!(database.read_entry(index_1 + 1).is_err());
     assert!(database.read_entry(1234).is_err());
 
     drop(database);
@@ -83,8 +82,8 @@ fn open_existing() {
     let value_1 = database.read_entry(0).unwrap();
     let value_2 = database.read_entry(27).unwrap();
 
-    assert_eq!(value_1, "value 2".as_bytes());
-    assert_eq!(value_2, "overwritten!".as_bytes());
+    assert_eq!(value_1, ("key2".to_string(), b"value 2".to_vec()));
+    assert_eq!(value_2, ("key1".to_string(), b"overwritten!".to_vec()));
 
     drop(database);
     fs::remove_file("test_open_existing.jdb").unwrap();

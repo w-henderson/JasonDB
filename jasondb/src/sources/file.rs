@@ -73,11 +73,11 @@ impl FileSource {
 }
 
 impl Source for FileSource {
-    fn read_entry(&mut self, offset: u64) -> Result<Vec<u8>, JasonError> {
-        let v_index = offset + self.load_size(offset)? + 8;
+    fn read_entry(&mut self, offset: u64) -> Result<(String, Vec<u8>), JasonError> {
+        let (k, v_index) = self.load_value(offset)?;
         let (v, _) = self.load_value(v_index)?;
 
-        Ok(v.to_vec())
+        Ok((unsafe { String::from_utf8_unchecked(k) }, v))
     }
 
     fn write_entry(&mut self, k: impl AsRef<str>, v: impl AsRef<[u8]>) -> Result<u64, JasonError> {
@@ -131,7 +131,7 @@ impl Source for FileSource {
         let mut indexes: HashMap<Value, Vec<u64>> = HashMap::new();
 
         for i in primary_indexes.values() {
-            let v = self.read_entry(*i)?;
+            let (_, v) = self.read_entry(*i)?;
             let json = unsafe { String::from_utf8_unchecked(v) };
             let value = Value::parse(json).map_err(|_| JasonError::JsonError)?;
             let indexed_value = indexing::get_value(k.as_ref(), &value)?;
