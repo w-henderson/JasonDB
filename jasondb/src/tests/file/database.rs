@@ -64,8 +64,8 @@ fn delete() -> Result<(), JasonError> {
 }
 
 #[test]
-fn conditional_query() -> Result<(), JasonError> {
-    let source = FileSource::create("test_db_query.jdb")?;
+fn optimised_query() -> Result<(), JasonError> {
+    let source = FileSource::create("test_optimised_query.jdb")?;
     let mut database: Database<Person> = Database::new(source)?.index_on("yearOfBirth")?;
 
     let person_1 = Person::new("Johann Sebastian Bach", 1685);
@@ -94,7 +94,43 @@ fn conditional_query() -> Result<(), JasonError> {
     assert!(composers.contains(&"Camille Saint-Saëns".to_string()));
     assert!(composers.contains(&"Pyotr Ilyich Tchaikovsky".to_string()));
 
-    fs::remove_file("test_db_query.jdb").unwrap();
+    fs::remove_file("test_optimised_query.jdb").unwrap();
+
+    Ok(())
+}
+
+#[test]
+fn unoptimised_query() -> Result<(), JasonError> {
+    let source = FileSource::create("test_unoptimised_query.jdb")?;
+    let mut database: Database<Person> = Database::new(source)?;
+
+    let person_1 = Person::new("Johann Sebastian Bach", 1685);
+    let person_2 = Person::new("Wolfgang Amadeus Mozart", 1756);
+    let person_3 = Person::new("Johannes Brahms", 1833);
+    let person_4 = Person::new("Camille Saint-Saëns", 1835);
+    let person_5 = Person::new("Pyotr Ilyich Tchaikovsky", 1840);
+    let person_6 = Person::new("Dmitri Shostakovich", 1906);
+
+    database.set("bach", &person_1)?;
+    database.set("mozart", &person_2)?;
+    database.set("brahms", &person_3)?;
+    database.set("saint_saens", &person_4)?;
+    database.set("tchaikovsky", &person_5)?;
+    database.set("shostakovich", &person_6)?;
+
+    // Get only 19th-century composers
+    let composers: Vec<String> = database
+        .query(query!(yearOfBirth >= 1800) & query!(yearOfBirth < 1900))?
+        .flatten()
+        .map(|(_, person)| person.name)
+        .collect();
+
+    assert_eq!(composers.len(), 3);
+    assert!(composers.contains(&"Johannes Brahms".to_string()));
+    assert!(composers.contains(&"Camille Saint-Saëns".to_string()));
+    assert!(composers.contains(&"Pyotr Ilyich Tchaikovsky".to_string()));
+
+    fs::remove_file("test_unoptimised_query.jdb").unwrap();
 
     Ok(())
 }
