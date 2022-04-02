@@ -80,9 +80,8 @@ fn conditional_query() -> Result<(), JasonError> {
 
     // Get only 19th-century composers
     let composers: Vec<String> = database
-        .iter()
+        .query(query!(yearOfBirth >= 1800) & query!(yearOfBirth < 1900))?
         .flatten()
-        .filter(|(_, person)| person.year_of_birth >= 1800 && person.year_of_birth < 1900)
         .map(|(_, person)| person.name)
         .collect();
 
