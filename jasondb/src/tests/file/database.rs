@@ -64,13 +64,15 @@ fn delete() -> Result<(), JasonError> {
 }
 
 #[test]
-fn optimised_query() -> Result<(), JasonError> {
-    let source = FileSource::create("test_optimised_query.jdb")?;
-    let mut database = composers_db(source)?.index_on("yearOfBirth")?;
+fn optimised_query_1() -> Result<(), JasonError> {
+    let source = FileSource::create("test_db_optimised_query_1.jdb")?;
+    let mut database = composers_db(source)?.index_on(field!(yearOfBirth))?;
 
     // Get only 19th-century composers
-    let composers: Vec<String> = database
-        .query(query!(yearOfBirth >= 1800) & query!(yearOfBirth < 1900))?
+    let query = query!(yearOfBirth >= 1800) & query!(yearOfBirth < 1900);
+
+    let composers: Vec<String> = query
+        .execute_optimised(&mut database)?
         .flatten()
         .map(|(_, person)| person.name)
         .collect();
@@ -80,19 +82,70 @@ fn optimised_query() -> Result<(), JasonError> {
     assert!(composers.contains(&"Camille Saint-Saëns".to_string()));
     assert!(composers.contains(&"Pyotr Ilyich Tchaikovsky".to_string()));
 
-    fs::remove_file("test_optimised_query.jdb").unwrap();
+    fs::remove_file("test_db_optimised_query_1.jdb").unwrap();
+
+    Ok(())
+}
+
+#[test]
+fn optimised_query_2() -> Result<(), JasonError> {
+    let source = FileSource::create("test_db_optimised_query_2.jdb")?;
+    let mut database = composers_db(source)?
+        .index_on(field!(name))?
+        .index_on(field!(yearOfBirth))?;
+
+    // Get only 19th-century composers
+    let query = query!(yearOfBirth >= 1800) & query!(name == "Johannes Brahms");
+
+    let composers: Vec<String> = query
+        .execute_optimised(&mut database)?
+        .flatten()
+        .map(|(_, person)| person.name)
+        .collect();
+
+    assert_eq!(composers.len(), 1);
+    assert!(composers.contains(&"Johannes Brahms".to_string()));
+
+    fs::remove_file("test_db_optimised_query_2.jdb").unwrap();
+
+    Ok(())
+}
+
+#[test]
+fn optimised_query_3() -> Result<(), JasonError> {
+    let source = FileSource::create("test_db_optimised_query_3.jdb")?;
+    let mut database = composers_db(source)?
+        .index_on(field!(name))?
+        .index_on(field!(yearOfBirth))?;
+
+    // Get only 19th-century composers
+    let query = query!(yearOfBirth >= 1900) | query!(name == "Johannes Brahms");
+
+    let composers: Vec<String> = query
+        .execute_optimised(&mut database)?
+        .flatten()
+        .map(|(_, person)| person.name)
+        .collect();
+
+    assert_eq!(composers.len(), 2);
+    assert!(composers.contains(&"Dmitri Shostakovich".to_string()));
+    assert!(composers.contains(&"Johannes Brahms".to_string()));
+
+    fs::remove_file("test_db_optimised_query_3.jdb").unwrap();
 
     Ok(())
 }
 
 #[test]
 fn unoptimised_query() -> Result<(), JasonError> {
-    let source = FileSource::create("test_unoptimised_query.jdb")?;
+    let source = FileSource::create("test_db_unoptimised_query.jdb")?;
     let mut database = composers_db(source)?;
 
     // Get only 19th-century composers
-    let composers: Vec<String> = database
-        .query(query!(yearOfBirth >= 1800) & query!(yearOfBirth < 1900))?
+    let query = query!(yearOfBirth >= 1800) & query!(yearOfBirth < 1900);
+
+    let composers: Vec<String> = query
+        .execute_unoptimised(&mut database)?
         .flatten()
         .map(|(_, person)| person.name)
         .collect();
@@ -102,7 +155,7 @@ fn unoptimised_query() -> Result<(), JasonError> {
     assert!(composers.contains(&"Camille Saint-Saëns".to_string()));
     assert!(composers.contains(&"Pyotr Ilyich Tchaikovsky".to_string()));
 
-    fs::remove_file("test_unoptimised_query.jdb").unwrap();
+    fs::remove_file("test_db_unoptimised_query.jdb").unwrap();
 
     Ok(())
 }
