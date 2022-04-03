@@ -59,14 +59,11 @@ impl Query {
         T: IntoJson + FromJson,
         S: Source,
     {
-        let first_predicate_key = self.predicates[0].key();
-
-        let optimisable = database.secondary_indexes.contains_key(first_predicate_key)
-            && self
-                .predicates
-                .iter()
-                .map(|p| p.key())
-                .all(|k| k == first_predicate_key);
+        let optimisable = self
+            .predicates
+            .iter()
+            .map(|p| p.key())
+            .all(|k| database.secondary_indexes.contains_key(k));
 
         if optimisable {
             self.execute_optimised(database)
@@ -76,7 +73,7 @@ impl Query {
     }
 
     /// Executes the query.
-    fn execute_optimised<'a, T, S>(
+    pub(crate) fn execute_optimised<'a, T, S>(
         &self,
         database: &'a mut Database<T, S>,
     ) -> Result<Iter<'a, T, S>, JasonError>
@@ -86,25 +83,56 @@ impl Query {
     {
         let mut indexes = Vec::new();
 
-        let secondary_index = database
-            .secondary_indexes
-            .get(self.predicates[0].key())
-            .ok_or(JasonError::JsonError)?;
+        // Use each predicate's corresponding index to find matches.
+        for predicate in &self.predicates {
+            let index = database.secondary_indexes.get(predicate.key()).unwrap();
 
-        for (value, value_indexes) in secondary_index {
-            if self.matches_direct(value)? {
-                indexes.extend(value_indexes);
+            for (v, i) in index {
+                if predicate.matches_direct(v)? {
+                    indexes.extend(i.iter());
+                }
             }
+        }
+
+        let include: Box<dyn Fn(usize) -> bool> = match self.predicate_combination {
+            PredicateCombination::And => Box::new(|n: usize| n == self.predicates.len()),
+            PredicateCombination::Or => Box::new(|n: usize| n > 0),
+        };
+
+        let mut combined_indexes = Vec::new();
+        let mut count = 0;
+        let mut last = 1; // cannot be a real index so we're good
+        indexes.sort_unstable();
+
+        // Use the number of matches found to determine which indexes meet the predicate combination requirements.
+        // If the number of matches is equal to the number of predicates, then the `And` combination is met.
+        // If the number of matches is greater than 0, then the `Or` combination is met.
+        // Otherwise, neither is met.
+        for index in indexes {
+            if last != index {
+                if include(count) {
+                    combined_indexes.push(last);
+                }
+
+                last = index;
+                count = 1;
+            } else {
+                count += 1;
+            }
+        }
+
+        if include(count) {
+            combined_indexes.push(last);
         }
 
         Ok(Iter {
             database,
-            keys: indexes.into_iter(),
+            keys: combined_indexes.into_iter(),
         })
     }
 
     /// Executes the query with no optimisations.
-    fn execute_unoptimised<'a, T, S>(
+    pub(crate) fn execute_unoptimised<'a, T, S>(
         &self,
         database: &'a mut Database<T, S>,
     ) -> Result<Iter<'a, T, S>, JasonError>
@@ -147,29 +175,6 @@ impl Query {
             PredicateCombination::Or => {
                 for predicate in &self.predicates {
                     if predicate.matches(json)? {
-                        return Ok(true);
-                    }
-                }
-                Ok(false)
-            }
-        }
-    }
-
-    /// Checks whether the query directly matches the given value.
-    /// This bypasses the index and checks for equality with the value itself.
-    pub(crate) fn matches_direct(&self, json: &Value) -> Result<bool, JasonError> {
-        match self.predicate_combination {
-            PredicateCombination::And => {
-                for predicate in &self.predicates {
-                    if !predicate.matches_direct(json)? {
-                        return Ok(false);
-                    }
-                }
-                Ok(true)
-            }
-            PredicateCombination::Or => {
-                for predicate in &self.predicates {
-                    if predicate.matches_direct(json)? {
                         return Ok(true);
                     }
                 }
