@@ -1,3 +1,5 @@
+#![warn(missing_docs)]
+
 mod database;
 pub mod error;
 pub mod sources;
