@@ -1,3 +1,5 @@
+//! Provides backend sources for the database as well as the extensible `Source` trait.
+
 mod file;
 mod memory;
 
