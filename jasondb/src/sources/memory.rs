@@ -7,12 +7,22 @@ use humphrey_json::Value;
 
 use std::collections::HashMap;
 
+/// Represents an in-memory database source.
+///
+/// ## Example
+/// ```
+/// let source = InMemory::new();
+/// let mut db: Database<String, InMemory> = Database::new(source)?;
+/// ```
 #[derive(Default)]
 pub struct InMemory {
     pub(crate) data: Vec<u8>,
 }
 
 impl InMemory {
+    /// Creates a new in-memory database.
+    ///
+    /// Does not allocate until the first entry is written as it is backed with a `Vec`.
     pub fn new() -> Self {
         Self::default()
     }
@@ -130,6 +140,7 @@ impl Source for InMemory {
     }
 }
 
+/// Loads an arbitrary value from the data at the given offset.
 fn load_value(data: &[u8], offset: u64) -> Result<(&[u8], usize), JasonError> {
     let offset: usize = offset.try_into().map_err(|_| JasonError::Index)?;
 

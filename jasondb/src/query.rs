@@ -1,3 +1,5 @@
+//! Provides query construction functionality.
+
 use crate::database::{Database, Iter};
 use crate::error::JasonError;
 use crate::sources::Source;
@@ -8,28 +10,47 @@ pub use humphrey_json::Value;
 
 use std::ops::{BitAnd, BitOr};
 
+/// Represents a query to be executed against a database.
+///
+/// Created with the `query!` macro.
 #[derive(Debug, PartialEq)]
 pub struct Query {
     pub(crate) predicates: Vec<Predicate>,
     pub(crate) predicate_combination: PredicateCombination,
 }
 
+/// Represents a predicate as part of a query.
+///
+/// Created with the `query!` macro.
 #[derive(Debug, PartialEq)]
 pub enum Predicate {
+    /// Equivalent to `key > value`.
     Gt(String, f64),
+    /// Equivalent to `key >= value`.
     Gte(String, f64),
+    /// Equivalent to `key < value`.
     Lt(String, f64),
+    /// Equivalent to `key <= value`.
     Lte(String, f64),
+    /// Equivalent to `key == value`.
     Eq(String, Value),
 }
 
+/// Represents a way of combining predicates. Currently the options are `and` and `or`.
 #[derive(Debug, PartialEq)]
 pub enum PredicateCombination {
+    /// Equivalent to logical `&&`.
     And,
+    /// Equivalent to logical `||`.
     Or,
 }
 
 impl Query {
+    /// Attempts to execute the query against the given database.
+    ///
+    /// If successful, an iterator over the matching values is returned.
+    /// This will automatically optimise the query where possible
+    ///   (see issue [#9](https://github.com/w-henderson/JasonDB/issues/9) for optimisation status).
     pub fn execute<'a, T, S>(
         &self,
         database: &'a mut Database<T, S>,
@@ -54,7 +75,8 @@ impl Query {
         }
     }
 
-    pub fn execute_optimised<'a, T, S>(
+    /// Executes the query.
+    fn execute_optimised<'a, T, S>(
         &self,
         database: &'a mut Database<T, S>,
     ) -> Result<Iter<'a, T, S>, JasonError>
@@ -81,7 +103,8 @@ impl Query {
         })
     }
 
-    pub fn execute_unoptimised<'a, T, S>(
+    /// Executes the query with no optimisations.
+    fn execute_unoptimised<'a, T, S>(
         &self,
         database: &'a mut Database<T, S>,
     ) -> Result<Iter<'a, T, S>, JasonError>
@@ -110,7 +133,8 @@ impl Query {
         })
     }
 
-    pub fn matches(&self, json: &Value) -> Result<bool, JasonError> {
+    /// Checks whether the query matches the given value.
+    pub(crate) fn matches(&self, json: &Value) -> Result<bool, JasonError> {
         match self.predicate_combination {
             PredicateCombination::And => {
                 for predicate in &self.predicates {
@@ -131,7 +155,9 @@ impl Query {
         }
     }
 
-    pub fn matches_direct(&self, json: &Value) -> Result<bool, JasonError> {
+    /// Checks whether the query directly matches the given value.
+    /// This bypasses the index and checks for equality with the value itself.
+    pub(crate) fn matches_direct(&self, json: &Value) -> Result<bool, JasonError> {
         match self.predicate_combination {
             PredicateCombination::And => {
                 for predicate in &self.predicates {
@@ -154,7 +180,8 @@ impl Query {
 }
 
 impl Predicate {
-    pub fn matches(&self, json: &Value) -> Result<bool, JasonError> {
+    /// Checks whether the predicate matches the given value.
+    pub(crate) fn matches(&self, json: &Value) -> Result<bool, JasonError> {
         match self {
             Self::Gt(index, right) => {
                 let left = indexing::get_number(index, json)?;
@@ -179,7 +206,9 @@ impl Predicate {
         }
     }
 
-    pub fn matches_direct(&self, json: &Value) -> Result<bool, JasonError> {
+    /// Checks whether the predicate directly matches the given value.
+    /// This bypasses the index and checks for equality with the value itself.
+    pub(crate) fn matches_direct(&self, json: &Value) -> Result<bool, JasonError> {
         match self {
             Self::Gt(_, right) => {
                 let left = json.as_number().ok_or(JasonError::JsonError)?;
@@ -201,7 +230,8 @@ impl Predicate {
         }
     }
 
-    pub fn key(&self) -> &str {
+    /// Returns the key of the predicate.
+    pub(crate) fn key(&self) -> &str {
         match self {
             Self::Gt(key, _) => key,
             Self::Gte(key, _) => key,
@@ -243,6 +273,18 @@ impl BitOr for Query {
     }
 }
 
+/// Creates a query from Rust-like logical syntax.
+///
+/// ## Examples
+/// ```
+/// query!(age >= 18) // `age` field >= 18
+/// query!(coordinates.lat > 0.0) // `lat` field of `coordinates` > 0.0, e.g. above equator
+/// query!(country == "UK") // `country` field == "UK"
+/// query!(price < 10) | query!(discounted) // `price` field < 10 or `discounted` field == true
+/// ```
+///
+/// You'll notice that queries are combined using bitwise operators outside of the macro.
+/// This is because the macro is currently not able to parse `&&` and `||`, but this will hopefully change in the future.
 #[macro_export]
 macro_rules! query {
     ($($field:ident).+ > $value:expr) => {
@@ -295,6 +337,13 @@ macro_rules! query {
     };
 }
 
+/// Creates a field string from Rust-like field access syntax.
+///
+/// ## Examples
+/// ```
+/// assert_eq!(field!(coordinates.lat), "coordinates.lat");
+/// assert_eq!(field!(age), "age");
+/// ```
 #[macro_export]
 macro_rules! field {
     ($($field:ident).+) => {
