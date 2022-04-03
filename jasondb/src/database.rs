@@ -127,6 +127,16 @@ where
             keys,
         }
     }
+
+    pub fn migrate<U, F>(mut self, f: F) -> Result<Database<U, S>, JasonError>
+    where
+        U: IntoJson + FromJson,
+        F: Fn(T) -> U,
+    {
+        self.source.migrate(&self.primary_indexes, f)?;
+
+        Database::new(self.source)
+    }
 }
 
 pub struct Iter<'a, T, S>

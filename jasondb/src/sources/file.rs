@@ -2,6 +2,7 @@ use crate::error::JasonError;
 use crate::sources::Source;
 use crate::util::{indexing, quiet_assert};
 
+use humphrey_json::prelude::*;
 use humphrey_json::Value;
 
 use std::collections::HashMap;
@@ -168,6 +169,56 @@ impl Source for FileSource {
             new_file.write_all(&buf).map_err(|_| JasonError::Io)?;
             new_len += buf.len() as u64;
         }
+
+        drop(new_file);
+
+        fs::rename(&self.path, self.path.with_extension("jdbold")).map_err(|_| JasonError::Io)?;
+        fs::rename(&temp_path, &self.path).map_err(|_| JasonError::Io)?;
+
+        let new_file = OpenOptions::new()
+            .read(true)
+            .append(true)
+            .open(&self.path)
+            .map_err(|_| JasonError::Io)?;
+
+        let _old_file = std::mem::replace(&mut self.file, new_file);
+        self.len = new_len;
+
+        fs::remove_file(self.path.with_extension("jdbold")).map_err(|_| JasonError::Io)?;
+
+        Ok(())
+    }
+
+    fn migrate<Old, New, F>(
+        &mut self,
+        indexes: &HashMap<String, u64>,
+        f: F,
+    ) -> Result<(), JasonError>
+    where
+        Old: IntoJson + FromJson,
+        New: IntoJson + FromJson,
+        F: Fn(Old) -> New,
+    {
+        let temp_path = self.path.with_extension("jdbtmp");
+        if temp_path.exists() {
+            fs::remove_file(&temp_path).map_err(|_| JasonError::Io)?;
+        }
+
+        let mut new_file = FileSource::create(&temp_path)?;
+
+        for &start_index in indexes.values() {
+            let (k, v) = self.read_entry(start_index)?;
+            let value_string = unsafe { String::from_utf8_unchecked(v) };
+
+            let old: Old =
+                humphrey_json::from_str(&value_string).map_err(|_| JasonError::JsonError)?;
+            let new: New = f(old);
+            let new_bytes = humphrey_json::to_string(&new).into_bytes();
+
+            new_file.write_entry(k, new_bytes)?;
+        }
+
+        let new_len = new_file.len;
 
         drop(new_file);
 
