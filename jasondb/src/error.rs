@@ -1,6 +1,9 @@
+//! Provides the `JasonError` type.
+
 use std::error::Error;
 use std::fmt::Display;
 
+/// Represents an error with JasonDB.
 #[derive(Debug, PartialEq, Eq)]
 #[non_exhaustive]
 pub enum JasonError {
