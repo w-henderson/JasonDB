@@ -2,7 +2,7 @@ use crate::error::JasonError;
 use crate::sources::{InMemory, Source};
 use crate::Database;
 
-use crate::tests::mock::Person;
+use crate::tests::mock::{composers_db, AgedPerson, Person};
 
 #[test]
 fn basic() -> Result<(), JasonError> {
@@ -62,22 +62,7 @@ fn delete() -> Result<(), JasonError> {
 #[test]
 fn optimised_query() -> Result<(), JasonError> {
     let source = InMemory::new();
-    let mut database: Database<Person, InMemory> =
-        Database::new(source)?.index_on(field!(yearOfBirth))?;
-
-    let person_1 = Person::new("Johann Sebastian Bach", 1685);
-    let person_2 = Person::new("Wolfgang Amadeus Mozart", 1756);
-    let person_3 = Person::new("Johannes Brahms", 1833);
-    let person_4 = Person::new("Camille Saint-Saëns", 1835);
-    let person_5 = Person::new("Pyotr Ilyich Tchaikovsky", 1840);
-    let person_6 = Person::new("Dmitri Shostakovich", 1906);
-
-    database.set("bach", &person_1)?;
-    database.set("mozart", &person_2)?;
-    database.set("brahms", &person_3)?;
-    database.set("saint_saens", &person_4)?;
-    database.set("tchaikovsky", &person_5)?;
-    database.set("shostakovich", &person_6)?;
+    let mut database = composers_db(source)?.index_on(field!(yearOfBirth))?;
 
     // Get only 19th-century composers
     let composers: Vec<String> = database
@@ -97,21 +82,7 @@ fn optimised_query() -> Result<(), JasonError> {
 #[test]
 fn unoptimised_query() -> Result<(), JasonError> {
     let source = InMemory::new();
-    let mut database: Database<Person, InMemory> = Database::new(source)?;
-
-    let person_1 = Person::new("Johann Sebastian Bach", 1685);
-    let person_2 = Person::new("Wolfgang Amadeus Mozart", 1756);
-    let person_3 = Person::new("Johannes Brahms", 1833);
-    let person_4 = Person::new("Camille Saint-Saëns", 1835);
-    let person_5 = Person::new("Pyotr Ilyich Tchaikovsky", 1840);
-    let person_6 = Person::new("Dmitri Shostakovich", 1906);
-
-    database.set("bach", &person_1)?;
-    database.set("mozart", &person_2)?;
-    database.set("brahms", &person_3)?;
-    database.set("saint_saens", &person_4)?;
-    database.set("tchaikovsky", &person_5)?;
-    database.set("shostakovich", &person_6)?;
+    let mut database = composers_db(source)?;
 
     // Get only 19th-century composers
     let composers: Vec<String> = database
@@ -124,6 +95,50 @@ fn unoptimised_query() -> Result<(), JasonError> {
     assert!(composers.contains(&"Johannes Brahms".to_string()));
     assert!(composers.contains(&"Camille Saint-Saëns".to_string()));
     assert!(composers.contains(&"Pyotr Ilyich Tchaikovsky".to_string()));
+
+    Ok(())
+}
+
+#[test]
+fn migration() -> Result<(), JasonError> {
+    let source = InMemory::new();
+    let database = composers_db(source)?;
+
+    // Replace birth years with ages in 2022
+    let mut database =
+        database.migrate(|person| AgedPerson::new(person.name, 2022 - person.year_of_birth))?;
+
+    assert_eq!(database.iter().count(), 6);
+
+    assert_eq!(
+        database.get("bach")?,
+        AgedPerson::new("Johann Sebastian Bach", 337)
+    );
+
+    assert_eq!(
+        database.get("mozart")?,
+        AgedPerson::new("Wolfgang Amadeus Mozart", 266)
+    );
+
+    assert_eq!(
+        database.get("brahms")?,
+        AgedPerson::new("Johannes Brahms", 189)
+    );
+
+    assert_eq!(
+        database.get("saint_saens")?,
+        AgedPerson::new("Camille Saint-Saëns", 187)
+    );
+
+    assert_eq!(
+        database.get("tchaikovsky")?,
+        AgedPerson::new("Pyotr Ilyich Tchaikovsky", 182)
+    );
+
+    assert_eq!(
+        database.get("shostakovich")?,
+        AgedPerson::new("Dmitri Shostakovich", 116)
+    );
 
     Ok(())
 }
