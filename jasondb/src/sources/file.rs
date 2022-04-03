@@ -10,6 +10,13 @@ use std::fs::{self, File, OpenOptions};
 use std::io::{Read, Seek, SeekFrom, Write};
 use std::path::{Path, PathBuf};
 
+/// Represents a file-based database source.
+///
+/// ## Example
+/// ```
+/// let source = FileSource::new("database.jdb");
+/// let mut db: Database<String> = Database::new(source)?;
+/// ```
 pub struct FileSource {
     pub(crate) file: File,
     pub(crate) path: PathBuf,
@@ -17,6 +24,12 @@ pub struct FileSource {
 }
 
 impl FileSource {
+    /// Opens the file-based database source from the given path, or creates an empty one if it doesn't exist.
+    ///
+    /// The database is indexed and compacted on load.
+    ///
+    /// To create an empty database and throw an error if it already exists, use `FileSource::create`.
+    /// To open an existing database and throw an error if it doesn't exist, use `FileSource::open`.
     pub fn new(path: impl AsRef<Path>) -> Result<Self, JasonError> {
         let file = OpenOptions::new()
             .read(true)
@@ -37,16 +50,25 @@ impl FileSource {
         })
     }
 
+    /// Creates a new empty file-based database source at the given path.
+    ///
+    /// If the file already exists, an error will be thrown.
     pub fn create(path: impl AsRef<Path>) -> Result<Self, JasonError> {
         quiet_assert(!path.as_ref().exists(), JasonError::Io)?;
         Self::new(path)
     }
 
+    /// Opens an existing file-based database source at the given path.
+    ///
+    /// The database is indexed and compacted on load.
+    ///
+    /// If the file doesn't exist, an error will be thrown.
     pub fn open(path: impl AsRef<Path>) -> Result<Self, JasonError> {
         quiet_assert(path.as_ref().exists(), JasonError::Io)?;
         Self::new(path)
     }
 
+    /// Loads the size of a database entry from the given offset.
     fn load_size(&mut self, offset: u64) -> Result<u64, JasonError> {
         let mut size_buf = [0u8; 8];
         self.file
@@ -59,6 +81,7 @@ impl FileSource {
         Ok(u64::from_le_bytes(size_buf))
     }
 
+    /// Loads an arbitrary value from the data at the given offset.
     fn load_value(&mut self, offset: u64) -> Result<(Vec<u8>, u64), JasonError> {
         let size = self.load_size(offset)?;
         let mut data: Vec<u8> = vec![0; size as usize];
