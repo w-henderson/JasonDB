@@ -26,8 +26,6 @@ pub struct FileSource {
 impl FileSource {
     /// Opens the file-based database source from the given path, or creates an empty one if it doesn't exist.
     ///
-    /// The database is indexed and compacted on load.
-    ///
     /// To create an empty database and throw an error if it already exists, use `FileSource::create`.
     /// To open an existing database and throw an error if it doesn't exist, use `FileSource::open`.
     pub fn new(path: impl AsRef<Path>) -> Result<Self, JasonError> {
@@ -59,8 +57,6 @@ impl FileSource {
     }
 
     /// Opens an existing file-based database source at the given path.
-    ///
-    /// The database is indexed and compacted on load.
     ///
     /// If the file doesn't exist, an error will be thrown.
     pub fn open(path: impl AsRef<Path>) -> Result<Self, JasonError> {
