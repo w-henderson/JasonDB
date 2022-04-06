@@ -4,6 +4,8 @@ use crate::Database;
 
 use crate::tests::mock::{composers_db, AgedPerson, Person};
 
+use std::fs;
+
 #[test]
 fn basic() -> Result<(), JasonError> {
     let mut database: Database<Person, InMemory> = Database::new_in_memory();
@@ -162,6 +164,39 @@ fn unoptimised_query() -> Result<(), JasonError> {
     assert!(composers.contains(&"Johannes Brahms".to_string()));
     assert!(composers.contains(&"Camille Saint-Saëns".to_string()));
     assert!(composers.contains(&"Pyotr Ilyich Tchaikovsky".to_string()));
+
+    Ok(())
+}
+
+#[test]
+fn into_file() -> Result<(), JasonError> {
+    let source = InMemory::new();
+    let database = composers_db(source)?;
+
+    let mut file_database = database.into_file("test_into_file.jdb")?;
+    let contents = file_database
+        .iter()
+        .flatten()
+        .map(|(_, v)| v)
+        .collect::<Vec<_>>();
+
+    let person_1 = Person::new("Johann Sebastian Bach", 1685);
+    let person_2 = Person::new("Wolfgang Amadeus Mozart", 1756);
+    let person_3 = Person::new("Johannes Brahms", 1833);
+    let person_4 = Person::new("Camille Saint-Saëns", 1835);
+    let person_5 = Person::new("Pyotr Ilyich Tchaikovsky", 1840);
+    let person_6 = Person::new("Dmitri Shostakovich", 1906);
+
+    assert_eq!(contents.len(), 6);
+
+    assert!(contents.contains(&person_1));
+    assert!(contents.contains(&person_2));
+    assert!(contents.contains(&person_3));
+    assert!(contents.contains(&person_4));
+    assert!(contents.contains(&person_5));
+    assert!(contents.contains(&person_6));
+
+    fs::remove_file("test_into_file.jdb").unwrap();
 
     Ok(())
 }

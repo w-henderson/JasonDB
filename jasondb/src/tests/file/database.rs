@@ -179,6 +179,39 @@ fn unoptimised_query() -> Result<(), JasonError> {
 }
 
 #[test]
+fn into_memory() -> Result<(), JasonError> {
+    let source = FileSource::create("test_into_memory.jdb")?;
+    let database = composers_db(source)?;
+
+    let mut memory_database = database.into_memory()?;
+    let contents = memory_database
+        .iter()
+        .flatten()
+        .map(|(_, v)| v)
+        .collect::<Vec<_>>();
+
+    let person_1 = Person::new("Johann Sebastian Bach", 1685);
+    let person_2 = Person::new("Wolfgang Amadeus Mozart", 1756);
+    let person_3 = Person::new("Johannes Brahms", 1833);
+    let person_4 = Person::new("Camille Saint-Saëns", 1835);
+    let person_5 = Person::new("Pyotr Ilyich Tchaikovsky", 1840);
+    let person_6 = Person::new("Dmitri Shostakovich", 1906);
+
+    assert_eq!(contents.len(), 6);
+
+    assert!(contents.contains(&person_1));
+    assert!(contents.contains(&person_2));
+    assert!(contents.contains(&person_3));
+    assert!(contents.contains(&person_4));
+    assert!(contents.contains(&person_5));
+    assert!(contents.contains(&person_6));
+
+    fs::remove_file("test_into_memory.jdb").unwrap();
+
+    Ok(())
+}
+
+#[test]
 fn migration() -> Result<(), JasonError> {
     let source = FileSource::create("test_migration.jdb")?;
     let database = composers_db(source)?;
