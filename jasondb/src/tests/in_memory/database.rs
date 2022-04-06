@@ -127,6 +127,26 @@ fn optimised_query_3() -> Result<(), JasonError> {
 }
 
 #[test]
+fn optimised_query_4() -> Result<(), JasonError> {
+    let source = InMemory::new();
+    let mut database = composers_db(source)?.index_on(field!(yearOfBirth))?;
+
+    // Get only 19th-century composers
+    let query = query!(yearOfBirth >= 1800) & query!(name == "Johannes Brahms");
+
+    let composers: Vec<String> = query
+        .execute_optimised(&mut database)?
+        .flatten()
+        .map(|(_, person)| person.name)
+        .collect();
+
+    assert_eq!(composers.len(), 1);
+    assert!(composers.contains(&"Johannes Brahms".to_string()));
+
+    Ok(())
+}
+
+#[test]
 fn unoptimised_query() -> Result<(), JasonError> {
     let source = InMemory::new();
     let mut database = composers_db(source)?;
