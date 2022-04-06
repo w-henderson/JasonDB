@@ -59,16 +59,24 @@ impl Query {
         T: IntoJson + FromJson,
         S: Source,
     {
-        let optimisable = self
-            .predicates
-            .iter()
-            .map(|p| p.key())
-            .all(|k| database.secondary_indexes.contains_key(k));
-
-        if optimisable {
+        if self.is_optimisable(database) {
             self.execute_optimised(database)
         } else {
             self.execute_unoptimised(database)
+        }
+    }
+
+    /// Checks whether the query is optimisable on the given database.
+    ///
+    /// This is used to prevent unnecessary optimisation attempts on unoptimisable queries.
+    fn is_optimisable<T, S>(&self, database: &Database<T, S>) -> bool
+    where
+        T: IntoJson + FromJson,
+        S: Source,
+    {
+        match self.predicate_combination {
+            PredicateCombination::And => self.predicates.iter().any(|p| p.is_indexed(database)),
+            PredicateCombination::Or => self.predicates.iter().all(|p| p.is_indexed(database)),
         }
     }
 
@@ -83,8 +91,20 @@ impl Query {
     {
         let mut indexes = Vec::new();
 
+        let optimisable_predicates = self
+            .predicates
+            .iter()
+            .filter(|p| database.secondary_indexes.contains_key(p.key()))
+            .collect::<Vec<_>>();
+
+        let unoptimisable_predicates = self
+            .predicates
+            .iter()
+            .filter(|p| !database.secondary_indexes.contains_key(p.key()))
+            .collect::<Vec<_>>();
+
         // Use each predicate's corresponding index to find matches.
-        for predicate in &self.predicates {
+        for predicate in &optimisable_predicates {
             let index = database.secondary_indexes.get(predicate.key()).unwrap();
 
             for (v, i) in index {
@@ -95,7 +115,7 @@ impl Query {
         }
 
         let include: Box<dyn Fn(usize) -> bool> = match self.predicate_combination {
-            PredicateCombination::And => Box::new(|n: usize| n == self.predicates.len()),
+            PredicateCombination::And => Box::new(|n: usize| n == optimisable_predicates.len()),
             PredicateCombination::Or => Box::new(|n: usize| n > 0),
         };
 
@@ -125,10 +145,36 @@ impl Query {
             combined_indexes.push(last);
         }
 
-        Ok(Iter {
-            database,
-            keys: combined_indexes.into_iter(),
-        })
+        if unoptimisable_predicates.is_empty() {
+            // If there are no unoptimisable predicates, we don't need to check any more conditions and we can return now.
+
+            Ok(Iter {
+                database,
+                keys: combined_indexes.into_iter(),
+            })
+        } else {
+            // If there are some unoptimisable predicates, we check them manually but use the existing indexes instead of every index.
+            // This is quicker than iterating over the whole database, but can only be applied when the combination is `And`.
+
+            let mut filtered_indexes = Vec::with_capacity(combined_indexes.len());
+
+            'outer: for index in combined_indexes {
+                let (_, v) = database.get_at_index(index)?;
+
+                for predicate in &unoptimisable_predicates {
+                    if !predicate.matches(&v.to_json())? {
+                        continue 'outer;
+                    }
+                }
+
+                filtered_indexes.push(index);
+            }
+
+            Ok(Iter {
+                database,
+                keys: filtered_indexes.into_iter(),
+            })
+        }
     }
 
     /// Executes the query with no optimisations.
@@ -151,7 +197,7 @@ impl Query {
             let (_, v) = database.get_at_index(*key)?;
 
             if self.matches(&v.to_json())? {
-                indexes.push(key.to_owned());
+                indexes.push(*key);
             }
         }
 
@@ -185,6 +231,15 @@ impl Query {
 }
 
 impl Predicate {
+    /// Checks whether the predicate is indexed by the given database.
+    fn is_indexed<T, S>(&self, database: &Database<T, S>) -> bool
+    where
+        T: IntoJson + FromJson,
+        S: Source,
+    {
+        database.secondary_indexes.contains_key(self.key())
+    }
+
     /// Checks whether the predicate matches the given value.
     pub(crate) fn matches(&self, json: &Value) -> Result<bool, JasonError> {
         match self {
