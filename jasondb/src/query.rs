@@ -122,7 +122,7 @@ impl Query {
         let mut combined_indexes = Vec::new();
         let mut count = 0;
         let mut last = 1; // cannot be a real index so we're good
-        indexes.sort_unstable();
+        indexes.sort();
 
         // Use the number of matches found to determine which indexes meet the predicate combination requirements.
         // If the number of matches is equal to the number of predicates, then the `And` combination is met.

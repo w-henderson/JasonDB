@@ -175,6 +175,11 @@ impl Source for FileSource {
             indexes.entry(indexed_value).or_insert(vec![]).push(*i);
         }
 
+        // We sort the indexes to optimise queries.
+        for vec in indexes.values_mut() {
+            vec.sort_unstable();
+        }
+
         Ok(indexes)
     }
 
