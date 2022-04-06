@@ -50,7 +50,7 @@ pub fn composers_db<S>(source: S) -> Result<Database<Person, S>, JasonError>
 where
     S: Source,
 {
-    let mut database: Database<Person, S> = Database::new(source)?;
+    let mut database: Database<Person, S> = Database::from_source(source)?;
 
     let person_1 = Person::new("Johann Sebastian Bach", 1685);
     let person_2 = Person::new("Wolfgang Amadeus Mozart", 1756);

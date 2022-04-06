@@ -2,7 +2,7 @@
 
 use crate::error::JasonError;
 use crate::query::Query;
-use crate::sources::{FileSource, Source};
+use crate::sources::{FileSource, InMemory, Source};
 use crate::util::indexing;
 
 use humphrey_json::prelude::*;
@@ -11,6 +11,7 @@ use humphrey_json::Value;
 use std::borrow::Borrow;
 use std::collections::HashMap;
 use std::marker::PhantomData;
+use std::path::Path;
 use std::vec::IntoIter;
 
 /// Represents a JasonDB database.
@@ -22,8 +23,39 @@ use std::vec::IntoIter;
 ///
 /// ## Example
 /// ```
-/// let source = FileSource::new("database.jdb");
-/// let mut db: Database<MyType> = Database::new(source)?;
+/// use jasondb::Database;
+/// use jasondb::error::JasonError;
+/// use humphrey_json::prelude::*;
+///
+/// struct Person {
+///     name: String,
+///     age: u8,
+/// }
+///
+/// json_map! {
+///     Person,
+///     name => "name",
+///     age => "age"
+/// }
+///
+/// fn main() -> Result<(), JasonError> {
+///     let mut db: Database<Person> = Database::new("database.jdb")?;
+///
+///     db.set("alice", Person {
+///         name: "Alice".to_string(),
+///         age: 20,
+///     })?;
+///
+///     db.set("bob", Person {
+///         name: "Bob".to_string(),
+///         age: 24,
+///     })?;
+///
+///     let alice = db.get("alice")?;
+///     assert_eq!(alice.age, 20);
+///
+///     Ok(())
+/// }
 /// ```
 pub struct Database<T, S = FileSource>
 where
@@ -36,17 +68,70 @@ where
     marker: PhantomData<T>,
 }
 
+impl<T> Database<T, FileSource>
+where
+    T: IntoJson + FromJson,
+{
+    /// Opens the database from the given path, or creates an empty one if it doesn't exist.
+    ///
+    /// To create an empty database and throw an error if it already exists, use `create`.
+    /// To open an existing database and throw an error if it doesn't exist, use `open`.
+    pub fn new(path: impl AsRef<Path>) -> Result<Self, JasonError> {
+        let source = FileSource::new(path)?;
+
+        Self::from_source(source)
+    }
+
+    /// Creates a new empty database at the given path.
+    ///
+    /// If the file already exists, an error will be thrown.
+    pub fn create(path: impl AsRef<Path>) -> Result<Self, JasonError> {
+        let source = FileSource::create(path)?;
+
+        Self::from_source(source)
+    }
+
+    /// Opens an existing database at the given path.
+    ///
+    /// If the file doesn't exist, an error will be thrown.
+    pub fn open(path: impl AsRef<Path>) -> Result<Self, JasonError> {
+        let source = FileSource::open(path)?;
+
+        Self::from_source(source)
+    }
+}
+
+impl<T> Database<T, InMemory>
+where
+    T: IntoJson + FromJson,
+{
+    /// Creates a new empty in-memory database.
+    pub fn new_in_memory() -> Self {
+        Self::default()
+    }
+}
+
+impl<T> Default for Database<T, InMemory>
+where
+    T: IntoJson + FromJson,
+{
+    fn default() -> Self {
+        Self {
+            primary_indexes: HashMap::new(),
+            secondary_indexes: HashMap::new(),
+            source: InMemory::new(),
+            marker: PhantomData,
+        }
+    }
+}
+
 impl<T, S> Database<T, S>
 where
     T: IntoJson + FromJson,
     S: Source,
 {
     /// Creates a new database backed by the given source.
-    ///
-    /// For file sources, this will index and compact the source, so may take a noticeable amount of time for large databases.
-    pub fn new(mut source: S) -> Result<Self, JasonError> {
-        let indexes = source.load_indexes()?;
-        source.compact(&indexes)?;
+    pub fn from_source(mut source: S) -> Result<Self, JasonError> {
         let indexes = source.load_indexes()?;
 
         Ok(Self {
@@ -55,6 +140,16 @@ where
             source,
             marker: PhantomData,
         })
+    }
+
+    /// Compacts the database on load.
+    ///
+    /// For smaller databases and for frequently-updated databases, it is good practice to do this on load.
+    /// For more read-oriented databases, it can offer a minor performance boost but it does take longer to load.
+    pub fn with_compaction(mut self) -> Result<Self, JasonError> {
+        self.compact()?;
+
+        Ok(self)
     }
 
     /// Configures the database to use the given secondary index.
@@ -66,14 +161,12 @@ where
     /// ## Example
     /// ```
     /// let mut db = Database::new(source)?
-    ///     .index_on(field!(my_field.my_subfield))?
-    ///     .index_on("my_field.my_other_subfield")?;
+    ///     .with_index(field!(my_field.my_subfield))?
+    ///     .with_index("my_field.my_other_subfield")?;
     /// ```
-    pub fn index_on(mut self, field: impl AsRef<str>) -> Result<Self, JasonError> {
+    pub fn with_index(mut self, field: impl AsRef<str>) -> Result<Self, JasonError> {
         let field = field.as_ref().to_string();
-
         let indexes = self.source.index_on(&field, &self.primary_indexes)?;
-
         self.secondary_indexes.insert(field, indexes);
 
         Ok(self)
@@ -174,6 +267,18 @@ where
         }
     }
 
+    /// Performs compaction on the database.
+    pub fn compact(&mut self) -> Result<(), JasonError> {
+        self.source.compact(&self.primary_indexes)?;
+        self.primary_indexes = self.source.load_indexes()?;
+
+        for (k, v) in self.secondary_indexes.iter_mut() {
+            *v = self.source.index_on(k, &self.primary_indexes)?;
+        }
+
+        Ok(())
+    }
+
     /// Migrates the database to a new type according to the function.
     pub fn migrate<U, F>(mut self, f: F) -> Result<Database<U, S>, JasonError>
     where
@@ -182,7 +287,7 @@ where
     {
         self.source.migrate(&self.primary_indexes, f)?;
 
-        Database::new(self.source)
+        Database::from_source(self.source)
     }
 }
 

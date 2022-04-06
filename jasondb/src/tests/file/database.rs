@@ -8,8 +8,7 @@ use std::fs;
 
 #[test]
 fn basic() -> Result<(), JasonError> {
-    let source = FileSource::create("test_db_basic.jdb")?;
-    let mut database: Database<Person> = Database::new(source)?;
+    let mut database: Database<Person> = Database::create("test_db_basic.jdb")?;
     assert_eq!(database.iter().count(), 0);
 
     let person_1 = Person::new("Elizabeth II", 1925);
@@ -31,8 +30,7 @@ fn basic() -> Result<(), JasonError> {
 
     let old_len = database.source.len;
 
-    let source = FileSource::open("test_db_basic.jdb")?;
-    let mut database: Database<Person> = Database::new(source)?;
+    let mut database: Database<Person> = Database::open("test_db_basic.jdb")?.with_compaction()?;
     assert_eq!(database.iter().count(), 3);
     assert!(database.source.len < old_len);
 
@@ -43,8 +41,7 @@ fn basic() -> Result<(), JasonError> {
 
 #[test]
 fn delete() -> Result<(), JasonError> {
-    let source = FileSource::create("test_db_delete.jdb")?;
-    let mut database: Database<Person> = Database::new(source)?;
+    let mut database: Database<Person> = Database::new("test_db_delete.jdb")?;
 
     let person_1 = Person::new("Elizabeth II", 1926);
     database.set("queen_elizabeth_ii", &person_1)?;
@@ -53,8 +50,7 @@ fn delete() -> Result<(), JasonError> {
     assert_eq!(database.iter().count(), 0);
     assert!(database.source.len > 0);
 
-    let source = FileSource::open("test_db_delete.jdb")?;
-    let mut database: Database<Person> = Database::new(source)?;
+    let mut database: Database<Person> = Database::new("test_db_delete.jdb")?.with_compaction()?;
     assert_eq!(database.iter().count(), 0);
     assert_eq!(database.source.len, 0);
 
@@ -66,7 +62,7 @@ fn delete() -> Result<(), JasonError> {
 #[test]
 fn optimised_query_1() -> Result<(), JasonError> {
     let source = FileSource::create("test_db_optimised_query_1.jdb")?;
-    let mut database = composers_db(source)?.index_on(field!(yearOfBirth))?;
+    let mut database = composers_db(source)?.with_index(field!(yearOfBirth))?;
 
     // Get only 19th-century composers
     let query = query!(yearOfBirth >= 1800) & query!(yearOfBirth < 1900);
@@ -91,8 +87,8 @@ fn optimised_query_1() -> Result<(), JasonError> {
 fn optimised_query_2() -> Result<(), JasonError> {
     let source = FileSource::create("test_db_optimised_query_2.jdb")?;
     let mut database = composers_db(source)?
-        .index_on(field!(name))?
-        .index_on(field!(yearOfBirth))?;
+        .with_index(field!(name))?
+        .with_index(field!(yearOfBirth))?;
 
     // Get only 19th-century composers
     let query = query!(yearOfBirth >= 1800) & query!(name == "Johannes Brahms");
@@ -115,8 +111,8 @@ fn optimised_query_2() -> Result<(), JasonError> {
 fn optimised_query_3() -> Result<(), JasonError> {
     let source = FileSource::create("test_db_optimised_query_3.jdb")?;
     let mut database = composers_db(source)?
-        .index_on(field!(name))?
-        .index_on(field!(yearOfBirth))?;
+        .with_index(field!(name))?
+        .with_index(field!(yearOfBirth))?;
 
     // Get only 19th-century composers
     let query = query!(yearOfBirth >= 1900) | query!(name == "Johannes Brahms");
@@ -139,7 +135,7 @@ fn optimised_query_3() -> Result<(), JasonError> {
 #[test]
 fn optimised_query_4() -> Result<(), JasonError> {
     let source = FileSource::create("test_db_optimised_query_4.jdb")?;
-    let mut database = composers_db(source)?.index_on(field!(yearOfBirth))?;
+    let mut database = composers_db(source)?.with_index(field!(yearOfBirth))?;
 
     // Get only 19th-century composers
     let query = query!(yearOfBirth >= 1800) & query!(name == "Johannes Brahms");

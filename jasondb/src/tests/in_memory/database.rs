@@ -6,8 +6,7 @@ use crate::tests::mock::{composers_db, AgedPerson, Person};
 
 #[test]
 fn basic() -> Result<(), JasonError> {
-    let source = InMemory::new();
-    let mut database: Database<Person, InMemory> = Database::new(source)?;
+    let mut database: Database<Person, InMemory> = Database::new_in_memory();
     assert_eq!(database.iter().count(), 0);
 
     let person_1 = Person::new("Elizabeth II", 1925);
@@ -40,8 +39,7 @@ fn basic() -> Result<(), JasonError> {
 
 #[test]
 fn delete() -> Result<(), JasonError> {
-    let source = InMemory::new();
-    let mut database: Database<Person, InMemory> = Database::new(source)?;
+    let mut database: Database<Person, InMemory> = Database::new_in_memory();
 
     let person_1 = Person::new("Elizabeth II", 1926);
     database.set("queen_elizabeth_ii", &person_1)?;
@@ -62,7 +60,7 @@ fn delete() -> Result<(), JasonError> {
 #[test]
 fn optimised_query_1() -> Result<(), JasonError> {
     let source = InMemory::new();
-    let mut database = composers_db(source)?.index_on(field!(yearOfBirth))?;
+    let mut database = composers_db(source)?.with_index(field!(yearOfBirth))?;
 
     // Get only 19th-century composers
     let query = query!(yearOfBirth >= 1800) & query!(yearOfBirth < 1900);
@@ -85,8 +83,8 @@ fn optimised_query_1() -> Result<(), JasonError> {
 fn optimised_query_2() -> Result<(), JasonError> {
     let source = InMemory::new();
     let mut database = composers_db(source)?
-        .index_on(field!(name))?
-        .index_on(field!(yearOfBirth))?;
+        .with_index(field!(name))?
+        .with_index(field!(yearOfBirth))?;
 
     // Get only 19th-century composers
     let query = query!(yearOfBirth >= 1800) & query!(name == "Johannes Brahms");
@@ -107,8 +105,8 @@ fn optimised_query_2() -> Result<(), JasonError> {
 fn optimised_query_3() -> Result<(), JasonError> {
     let source = InMemory::new();
     let mut database = composers_db(source)?
-        .index_on(field!(name))?
-        .index_on(field!(yearOfBirth))?;
+        .with_index(field!(name))?
+        .with_index(field!(yearOfBirth))?;
 
     // Get only 19th-century composers
     let query = query!(yearOfBirth >= 1900) | query!(name == "Johannes Brahms");
@@ -129,7 +127,7 @@ fn optimised_query_3() -> Result<(), JasonError> {
 #[test]
 fn optimised_query_4() -> Result<(), JasonError> {
     let source = InMemory::new();
-    let mut database = composers_db(source)?.index_on(field!(yearOfBirth))?;
+    let mut database = composers_db(source)?.with_index(field!(yearOfBirth))?;
 
     // Get only 19th-century composers
     let query = query!(yearOfBirth >= 1800) & query!(name == "Johannes Brahms");
