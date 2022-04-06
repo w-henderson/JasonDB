@@ -1,11 +1,13 @@
 use crate::error::JasonError;
-use crate::sources::Source;
+use crate::sources::{FileSource, Source};
 use crate::util::{indexing, quiet_assert};
 
 use humphrey_json::prelude::*;
 use humphrey_json::Value;
 
 use std::collections::HashMap;
+use std::io::Write;
+use std::path::Path;
 
 /// Represents an in-memory database source.
 ///
@@ -25,6 +27,18 @@ impl InMemory {
     /// Does not allocate until the first entry is written as it is backed with a `Vec`.
     pub fn new() -> Self {
         Self::default()
+    }
+
+    /// Writes the in-memory database to a new file at the given path.
+    pub fn into_file(self, path: impl AsRef<Path>) -> Result<FileSource, JasonError> {
+        let mut file = FileSource::create(path)?;
+
+        file.file
+            .write_all(&self.data)
+            .map_err(|_| JasonError::Io)?;
+        file.len = self.data.len() as u64;
+
+        Ok(file)
     }
 }
 

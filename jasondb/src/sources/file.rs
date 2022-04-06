@@ -1,5 +1,5 @@
 use crate::error::JasonError;
-use crate::sources::Source;
+use crate::sources::{InMemory, Source};
 use crate::util::{indexing, quiet_assert};
 
 use humphrey_json::prelude::*;
@@ -62,6 +62,22 @@ impl FileSource {
     pub fn open(path: impl AsRef<Path>) -> Result<Self, JasonError> {
         quiet_assert(path.as_ref().exists(), JasonError::Io)?;
         Self::new(path)
+    }
+
+    /// Converts the file source into an in-memory source by copying the contents of the file into memory.
+    ///
+    /// **Warning:** changes made to the new in-memory source will not be reflected in the original file source.
+    pub fn into_memory(mut self) -> Result<InMemory, JasonError> {
+        let mut buf: Vec<u8> = Vec::with_capacity(self.len as usize);
+
+        self.file
+            .seek(SeekFrom::Start(0))
+            .map_err(|_| JasonError::Io)?;
+        self.file
+            .read_to_end(&mut buf)
+            .map_err(|_| JasonError::Io)?;
+
+        Ok(InMemory { data: buf })
     }
 
     /// Loads the size of a database entry from the given offset.

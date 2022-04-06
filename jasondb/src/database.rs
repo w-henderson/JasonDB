@@ -99,6 +99,18 @@ where
 
         Self::from_source(source)
     }
+
+    /// Converts the file-based database into an in-memory database by copying the contents of the file into memory.
+    ///
+    /// **Warning:** changes made to the new in-memory database will not be reflected in the original file-based database.
+    pub fn into_memory(self) -> Result<Database<T, InMemory>, JasonError> {
+        Ok(Database {
+            primary_indexes: self.primary_indexes,
+            secondary_indexes: self.secondary_indexes,
+            source: self.source.into_memory()?,
+            marker: PhantomData,
+        })
+    }
 }
 
 impl<T> Database<T, InMemory>
@@ -108,6 +120,16 @@ where
     /// Creates a new empty in-memory database.
     pub fn new_in_memory() -> Self {
         Self::default()
+    }
+
+    /// Writes the in-memory database to a new file at the given path.
+    pub fn into_file(self, path: impl AsRef<Path>) -> Result<Database<T>, JasonError> {
+        Ok(Database {
+            primary_indexes: self.primary_indexes,
+            secondary_indexes: self.secondary_indexes,
+            source: self.source.into_file(path)?,
+            marker: PhantomData,
+        })
     }
 }
 
