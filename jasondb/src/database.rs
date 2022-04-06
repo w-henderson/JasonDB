@@ -232,10 +232,9 @@ where
 
         for (index_path, indexes) in &mut self.secondary_indexes {
             let indexed_value = indexing::get_value(index_path, &value.borrow().to_json())?;
-            indexes
-                .entry(indexed_value)
-                .or_insert_with(Vec::new)
-                .push(index);
+            let vec = indexes.entry(indexed_value).or_insert_with(Vec::new);
+            let location = vec.binary_search(&index).unwrap_or_else(|e| e);
+            vec.insert(location, index);
         }
 
         Ok(())
