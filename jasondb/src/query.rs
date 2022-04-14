@@ -8,6 +8,7 @@ use crate::util::indexing;
 use humphrey_json::prelude::*;
 pub use humphrey_json::Value;
 
+use std::fmt::Debug;
 use std::ops::{BitAnd, BitOr};
 
 /// Represents a query to be executed against a database.
@@ -36,6 +37,8 @@ pub enum Predicate {
     Eq(String, Value),
     /// Equivalent to `key != value`.
     Ne(String, Value),
+    /// Equivalent to `closure(key)`.
+    Closure(String, PredicateClosure),
 }
 
 /// Represents a way of combining predicates. Currently the options are `and` and `or`.
@@ -45,6 +48,11 @@ pub enum PredicateCombination {
     And,
     /// Equivalent to logical `||`.
     Or,
+}
+
+/// Represents a closure that can be used as a predicate.
+pub struct PredicateClosure {
+    pub(crate) closure: Box<dyn Fn(&Value) -> bool>,
 }
 
 impl Query {
@@ -274,6 +282,10 @@ impl Predicate {
                 let left = indexing::get_value(index, json)?;
                 Ok(left != *right)
             }
+            Self::Closure(index, closure) => {
+                let left = indexing::get_value(index, json)?;
+                Ok((closure.closure)(&left))
+            }
         }
     }
 
@@ -299,6 +311,7 @@ impl Predicate {
             }
             Self::Eq(_, right) => Ok(*json == *right),
             Self::Ne(_, right) => Ok(*json != *right),
+            Self::Closure(_, closure) => Ok((closure.closure)(json)),
         }
     }
 
@@ -311,6 +324,7 @@ impl Predicate {
             Self::Lte(key, _) => key,
             Self::Eq(key, _) => key,
             Self::Ne(key, _) => key,
+            Self::Closure(key, _) => key,
         }
     }
 }
@@ -346,9 +360,26 @@ impl BitOr for Query {
     }
 }
 
+impl Debug for PredicateClosure {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("PredicateClosure").finish()
+    }
+}
+
+impl PartialEq for PredicateClosure {
+    fn eq(&self, _: &Self) -> bool {
+        // Closures cannot be equal
+        false
+    }
+}
+
 /// Creates a query from Rust-like logical syntax.
 ///
-/// ## Examples
+/// ## Basic Examples
+/// For simple equality and ordering queries, you can just write the path to the field as you would in Rust or JavaScript,
+///   separated by dots, then an operator, and then a value. This uses the field names in the JSON serialization instead
+///   of those in the Rust struct.
+///
 /// ```
 /// query!(age >= 18) // `age` field >= 18
 /// query!(coordinates.lat > 0.0) // `lat` field of `coordinates` > 0.0, e.g. above equator
@@ -358,6 +389,19 @@ impl BitOr for Query {
 ///
 /// You'll notice that queries are combined using bitwise operators outside of the macro.
 /// This is because the macro is currently not able to parse `&&` and `||`, but this will hopefully change in the future.
+///
+/// ## Advanced Examples
+/// For more complex queries, you can use a closure to define the predicate. You still need to specify the field using the dot
+///   syntax for optimisation purposes, as shown below.
+///
+/// ```
+/// // Check whether the field `dob.year` is a leap year.
+/// // https://en.wikipedia.org/wiki/Leap_year
+/// query!(dob.year, |year| year
+///     .as_number()
+///     .map(|y| (y as usize % 4 == 0 && y as usize % 100 != 0) || y as usize % 400 == 0)
+///     .unwrap_or(false));
+/// ```
 #[macro_export]
 macro_rules! query {
     ($($field:ident).+ > $value:expr) => {
@@ -420,6 +464,15 @@ macro_rules! query {
         $crate::query::Query::from($crate::query::Predicate::Eq(
             stringify!($($field).+).to_string(),
             $crate::query::Value::Bool(true),
+        ))
+    };
+
+    ($($field:ident).+, $closure:expr) => {
+        $crate::query::Query::from($crate::query::Predicate::Closure(
+            stringify!($($field).+).to_string(),
+            $crate::query::PredicateClosure {
+                closure: Box::new($closure),
+            },
         ))
     };
 }
