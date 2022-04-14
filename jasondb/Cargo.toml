@@ -2,6 +2,13 @@
 name = "jasondb"
 version = "0.2.0"
 edition = "2021"
+license = "MIT"
+homepage = "https://github.com/w-henderson/JasonDB"
+repository = "https://github.com/w-henderson/JasonDB"
+readme = "../README.md"
+description = "A Blazingly-Fast, JSON-Based, Log-Structured Database."
+keywords = ["database", "json", "dbms"]
+categories = ["database", "database-implementations"]
 
 [dependencies]
 humphrey_json = "^0.1.1"
