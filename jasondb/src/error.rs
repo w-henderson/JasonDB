@@ -15,6 +15,8 @@ pub enum JasonError {
     InvalidKey,
     /// The JSON value was invalid.
     JsonError,
+    /// An error occurred with a replica.
+    ReplicaError,
     /// An unknown error occurred.
     Unknown,
 }

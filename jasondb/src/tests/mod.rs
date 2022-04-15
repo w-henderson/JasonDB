@@ -1,5 +1,7 @@
 mod file;
 mod in_memory;
 mod macros;
-mod mock;
 mod query;
+mod replica;
+
+mod mock;
