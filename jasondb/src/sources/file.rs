@@ -66,7 +66,15 @@ impl FileSource {
 
     /// Converts the file source into an in-memory source by copying the contents of the file into memory.
     ///
-    /// **Warning:** changes made to the new in-memory source will not be reflected in the original file source.
+    /// **Warning:** changes made to the new in-memory source will not be reflected in the original file source. If you're looking
+    ///   to have an in-memory database which remains synchronized with the original file source, add a replica to replicate writes
+    ///   back to the file, as follows:
+    ///
+    /// ```rs
+    /// let mut db = Database::open("database.jdb")?          // Open the file-based database
+    ///     .into_memory()?                                   // Copy into memory
+    ///     .with_replica(Database::open("database.jdb")?);   // Replicate subsequent writes back to the file
+    /// ```
     pub fn into_memory(mut self) -> Result<InMemory, JasonError> {
         let mut buf: Vec<u8> = Vec::with_capacity(self.len as usize);
 

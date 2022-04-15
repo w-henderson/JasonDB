@@ -5,6 +5,7 @@
 
 mod database;
 pub mod error;
+pub mod replica;
 pub mod sources;
 mod util;
 

@@ -2,8 +2,9 @@
 
 use crate::error::JasonError;
 use crate::query::Query;
+use crate::replica::{Replica, Replicator};
 use crate::sources::{FileSource, InMemory, Source};
-use crate::util::indexing;
+use crate::util::{indexing, quiet_assert};
 
 use humphrey_json::prelude::*;
 use humphrey_json::Value;
@@ -59,12 +60,13 @@ use std::vec::IntoIter;
 /// ```
 pub struct Database<T, S = FileSource>
 where
-    T: IntoJson + FromJson,
+    T: IntoJson + FromJson + 'static,
     S: Source,
 {
     pub(crate) primary_indexes: HashMap<String, u64>,
     pub(crate) secondary_indexes: HashMap<String, HashMap<Value, Vec<u64>>>,
     pub(crate) source: S,
+    pub(crate) replicas: Vec<Replicator<T>>,
     marker: PhantomData<T>,
 }
 
@@ -108,6 +110,7 @@ where
             primary_indexes: self.primary_indexes,
             secondary_indexes: self.secondary_indexes,
             source: self.source.into_memory()?,
+            replicas: self.replicas,
             marker: PhantomData,
         })
     }
@@ -128,6 +131,7 @@ where
             primary_indexes: self.primary_indexes,
             secondary_indexes: self.secondary_indexes,
             source: self.source.into_file(path)?,
+            replicas: self.replicas,
             marker: PhantomData,
         })
     }
@@ -142,6 +146,7 @@ where
             primary_indexes: HashMap::new(),
             secondary_indexes: HashMap::new(),
             source: InMemory::new(),
+            replicas: Vec::new(),
             marker: PhantomData,
         }
     }
@@ -160,6 +165,7 @@ where
             primary_indexes: indexes,
             secondary_indexes: HashMap::new(),
             source,
+            replicas: Vec::new(),
             marker: PhantomData,
         })
     }
@@ -192,6 +198,62 @@ where
         self.secondary_indexes.insert(field, indexes);
 
         Ok(self)
+    }
+
+    /// Adds a synchronous replica to the database.
+    ///
+    /// This is useful to add persistence to an in-memory database. By having an in-memory database with a synchronous
+    ///   file-based replica, you get the speed of the in-memory database for reads and the persistence of the file-based
+    ///   replica for writes. This is a good idea for databases that get many reads and less writes.
+    ///
+    /// All writes to the database will be replicated to the all configured replicas synchronously, so having many
+    ///   replicas or having slow ones can slow down writes.
+    ///
+    /// Any implementor of the [`Replica`] trait can be used. Currently, this is just [`Database`], but the API has been
+    ///   designed in such a way that in the future, other types of replica could be used, for example distributed
+    ///   replicas or even other database systems completely.
+    ///
+    /// ## Example
+    /// ```rs
+    /// // Creating a new in-memory database with synchronous replication to disk.
+    /// let mut db = Database::new_in_memory()
+    ///     .with_replica(Database::create("sync_file_replica.jdb")?);
+    ///
+    /// // Opening a disk-based database, copying it into memory, and synchronously replicating it back to disk.
+    /// let mut db = Database::open("database.jdb")?
+    ///     .into_memory()?
+    ///     .with_replica(Database::open("database.jdb")?);
+    /// ```
+    pub fn with_replica<R>(mut self, replica: R) -> Self
+    where
+        R: Replica<T>,
+    {
+        self.replicas.push(Replicator::new(replica));
+        self
+    }
+
+    /// Adds an asynchronous replica to the database, and starts a background thread to replicate writes to it.
+    ///
+    /// All writes to the database will be replicated to the all configured replicas asynchronously, so data loss
+    ///   is possible in the event of a panic. The database will attempt to continue replicating writes to the
+    ///   replica if an error causes the database to be dropped, but if `drop` is not called, all
+    ///   pending writes will be lost.
+    ///
+    /// Any implementor of the [`Replica`] trait can be used. Currently, this is just [`Database`], but the API has been
+    ///   designed in such a way that in the future, other types of replica could be used, for example distributed
+    ///   replicas or even other database systems completely.
+    ///
+    /// ## Example
+    /// ```rs
+    /// let mut db = Database::new_in_memory()
+    ///     .with_async_replica(Database::create("async_file_replica.jdb")?);
+    /// ```
+    pub fn with_async_replica<R>(mut self, replica: R) -> Self
+    where
+        R: Replica<T>,
+    {
+        self.replicas.push(Replicator::new_async(replica));
+        self
     }
 
     /// Gets the value with the given key.
@@ -237,6 +299,24 @@ where
             vec.insert(location, index);
         }
 
+        for replica in &mut self.replicas {
+            replica.set(key.as_ref(), &json)?;
+        }
+
+        Ok(())
+    }
+
+    /// Sets the value with the given key to the given raw bytes.
+    ///
+    /// ## Panics
+    /// This function will panic if there are any secondary indexes, as these cannot be updated
+    ///   from raw bytes.
+    pub(crate) fn set_raw(&mut self, key: &str, value: &[u8]) -> Result<(), JasonError> {
+        quiet_assert(self.secondary_indexes.is_empty(), JasonError::Index)?;
+
+        let index = self.source.write_entry(key, value)?;
+        self.primary_indexes.insert(key.to_string(), index);
+
         Ok(())
     }
 
@@ -260,6 +340,10 @@ where
         }
 
         self.source.write_entry(key.as_ref(), "null")?;
+
+        for replica in &mut self.replicas {
+            replica.set(key.as_ref(), "null")?;
+        }
 
         Ok(())
     }
@@ -315,7 +399,7 @@ where
 /// An iterator over the database.
 pub struct Iter<'a, T, S>
 where
-    T: IntoJson + FromJson,
+    T: IntoJson + FromJson + 'static,
     S: Source,
 {
     pub(crate) database: &'a mut Database<T, S>,
