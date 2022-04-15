@@ -4,7 +4,7 @@ use crate::Database;
 
 use humphrey_json::prelude::*;
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Person {
     pub(crate) name: String,
     pub(crate) year_of_birth: u16,
