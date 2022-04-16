@@ -178,7 +178,7 @@ impl Source for FileSource {
             let (_, v) = self.read_entry(*i)?;
             let json = unsafe { String::from_utf8_unchecked(v) };
             let value = Value::parse(json).map_err(|_| JasonError::JsonError)?;
-            let indexed_value = indexing::get_value(k.as_ref(), &value)?;
+            let indexed_value = indexing::get_value(k.as_ref(), &value);
 
             indexes.entry(indexed_value).or_insert(vec![]).push(*i);
         }

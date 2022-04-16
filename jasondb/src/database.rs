@@ -293,14 +293,7 @@ where
         self.primary_indexes.insert(key.as_ref().to_string(), index);
 
         for (index_path, indexes) in &mut self.secondary_indexes {
-            let indexed_value = match indexing::get_value(index_path, &value.borrow().to_json()) {
-                Ok(v) => v,
-                Err(e) => match e {
-                    JasonError::JsonError => Value::Null,
-                    _ => return Err(e),
-                },
-            };
-
+            let indexed_value = indexing::get_value(index_path, &value.borrow().to_json());
             let vec = indexes.entry(indexed_value).or_insert_with(Vec::new);
             let location = vec.binary_search(&index).unwrap_or_else(|e| e);
             vec.insert(location, index);
@@ -339,13 +332,7 @@ where
         let value = self.get_at_index(index)?.1.to_json();
 
         for (index_path, indexes) in &mut self.secondary_indexes {
-            let indexed_value = match indexing::get_value(index_path, &value) {
-                Ok(v) => v,
-                Err(e) => match e {
-                    JasonError::JsonError => Value::Null,
-                    _ => return Err(e),
-                },
-            };
+            let indexed_value = indexing::get_value(index_path, &value);
 
             indexes
                 .get_mut(&indexed_value)

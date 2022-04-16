@@ -275,15 +275,15 @@ impl Predicate {
                 Ok(left <= *right)
             }
             Self::Eq(index, right) => {
-                let left = indexing::get_value(index, json)?;
+                let left = indexing::get_value(index, json);
                 Ok(left == *right)
             }
             Self::Ne(index, right) => {
-                let left = indexing::get_value(index, json)?;
+                let left = indexing::get_value(index, json);
                 Ok(left != *right)
             }
             Self::Closure(index, closure) => {
-                let left = indexing::get_value(index, json)?;
+                let left = indexing::get_value(index, json);
                 Ok((closure.closure)(&left))
             }
         }
