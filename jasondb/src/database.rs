@@ -358,8 +358,24 @@ where
 
     /// Creates an iterator over the database.
     ///
-    /// This only reads from the database when it is used, so is very cheap to create.
+    /// This only reads from the database when it is used, so is very cheap to create. It does, however,
+    ///   sort the keys so it can iterate over the database in the order in which it is stored on disk.
+    ///   To avoid this behaviour, use the `iter_unordered` method instead.
     pub fn iter(&mut self) -> Iter<T, S> {
+        let mut keys = self.primary_indexes.values().cloned().collect::<Vec<_>>();
+
+        keys.sort_unstable();
+
+        Iter {
+            database: self,
+            keys: keys.into_iter(),
+        }
+    }
+
+    /// Creates an iterator over the database, but does not sort the keys.
+    ///
+    /// This is quicker to create, but will be slower to iterate over since the disk will not be read sequentially.
+    pub fn iter_unordered(&mut self) -> Iter<T, S> {
         let keys = self
             .primary_indexes
             .values()
