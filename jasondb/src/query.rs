@@ -52,7 +52,8 @@ pub enum PredicateCombination {
 
 /// Represents a closure that can be used as a predicate.
 pub struct PredicateClosure {
-    pub(crate) closure: Box<dyn Fn(&Value) -> bool>,
+    /// The closure which checks whether the predicate matches the value.
+    pub closure: Box<dyn Fn(&Value) -> bool>,
 }
 
 impl Query {
