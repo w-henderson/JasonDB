@@ -437,3 +437,26 @@ where
         Some(value)
     }
 }
+
+impl<'a, T, S> DoubleEndedIterator for Iter<'a, T, S>
+where
+    T: IntoJson + FromJson,
+    S: Source,
+{
+    fn next_back(&mut self) -> Option<Self::Item> {
+        let index = self.keys.next_back()?;
+        let value = self.database.get_at_index(index);
+
+        Some(value)
+    }
+}
+
+impl<'a, T, S> ExactSizeIterator for Iter<'a, T, S>
+where
+    T: IntoJson + FromJson,
+    S: Source,
+{
+    fn len(&self) -> usize {
+        self.keys.len()
+    }
+}
