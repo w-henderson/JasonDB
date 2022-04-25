@@ -290,13 +290,48 @@ where
     pub fn set(&mut self, key: impl AsRef<str>, value: impl Borrow<T>) -> Result<(), JasonError> {
         let json = humphrey_json::to_string(value.borrow());
         let index = self.source.write_entry(key.as_ref(), json.as_bytes())?;
-        self.primary_indexes.insert(key.as_ref().to_string(), index);
+
+        // Replace the primary index and get the old index.
+        let old_index = self.primary_indexes.insert(key.as_ref().to_string(), index);
+
+        // Get the old value for secondary indexes.
+        let old_value = if let Some(old_index) = old_index {
+            Some(self.get_at_index(old_index)?.1.to_json())
+        } else {
+            None
+        };
 
         for (index_path, indexes) in &mut self.secondary_indexes {
+            // Get the value used for the secondary index.
             let indexed_value = indexing::get_value(index_path, &value.borrow().to_json());
+
+            // Store whether the value has changed.
+            let changed_index_value = old_value
+                .as_ref()
+                .map(|v| v != &indexed_value)
+                .unwrap_or(false);
             let vec = indexes.entry(indexed_value).or_insert_with(Vec::new);
-            let location = vec.binary_search(&index).unwrap_or_else(|e| e);
-            vec.insert(location, index);
+
+            // If the entire JSON value has changed but the secondary index value hasn't, remove the old index
+            //   from the existing list.
+            if let Some(old_index) = old_index {
+                vec.retain(|&i| i != old_index);
+            }
+
+            // Add the new index to the list.
+            vec.push(index);
+
+            // If the value has changed, check if the indexed value has also changed.
+            if let Some(old_value) = &old_value {
+                let old_indexed_value = indexing::get_value(index_path, old_value);
+
+                if changed_index_value {
+                    let old_vec = indexes.entry(old_indexed_value).or_insert_with(Vec::new);
+
+                    // Remove the old index from the list.
+                    old_vec.retain(|&i| i != old_index.unwrap());
+                }
+            }
         }
 
         for replica in &mut self.replicas {
