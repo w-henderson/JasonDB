@@ -42,7 +42,7 @@ pub enum Predicate {
 }
 
 /// Represents a way of combining predicates. Currently the options are `and` and `or`.
-#[derive(Debug, PartialEq)]
+#[derive(Debug, PartialEq, Eq)]
 pub enum PredicateCombination {
     /// Equivalent to logical `&&`.
     And,

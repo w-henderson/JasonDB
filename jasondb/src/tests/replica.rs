@@ -11,7 +11,7 @@ use std::sync::mpsc::{channel, Sender};
 #[test]
 fn sync_replica() -> Result<(), JasonError> {
     let mut database: Database<Person, InMemory> = Database::new_in_memory()
-        .with_index("yearOfBirth")?
+        .with_index("year_of_birth")?
         .with_replica(Database::create("test_sync_replica.jdb")?);
 
     let person_1 = Person::new("Elizabeth II", 1926);
@@ -44,7 +44,7 @@ fn sync_replica() -> Result<(), JasonError> {
 #[test]
 fn async_replica() -> Result<(), JasonError> {
     let mut database: Database<Person, InMemory> = Database::new_in_memory()
-        .with_index("yearOfBirth")?
+        .with_index("year_of_birth")?
         .with_async_replica(Database::create("test_async_replica.jdb")?);
 
     let person_1 = Person::new("Elizabeth II", 1926);
@@ -93,7 +93,7 @@ fn arbitrary_replica() -> Result<(), JasonError> {
     let (tx_2, rx_2) = channel();
 
     let mut database: Database<Person, InMemory> = Database::new_in_memory()
-        .with_index("yearOfBirth")?
+        .with_index("year_of_birth")?
         .with_replica(ChannelReplica(tx_1.clone()))
         .with_async_replica(ChannelReplica(tx_2.clone()));
 

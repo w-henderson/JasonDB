@@ -12,7 +12,7 @@ use std::collections::HashMap;
 fn test_add_new() -> Result<(), JasonError> {
     let mut database: Database<Person, InMemory> = Database::new_in_memory()
         .with_index("name")?
-        .with_index("yearOfBirth")?;
+        .with_index("year_of_birth")?;
 
     let person_1 = Person::new("A", 2000);
     let person_2 = Person::new("B", 2000);
@@ -30,7 +30,7 @@ fn test_add_new() -> Result<(), JasonError> {
     let index_4 = *database.primary_indexes.get("d").unwrap();
 
     let name_index = database.secondary_indexes.get("name").unwrap();
-    let year_of_birth_index = database.secondary_indexes.get("yearOfBirth").unwrap();
+    let year_of_birth_index = database.secondary_indexes.get("year_of_birth").unwrap();
 
     let expected_name_index: HashMap<Value, Vec<u64>> = [
         (Value::String("A".to_string()), vec![index_1]),
@@ -57,7 +57,7 @@ fn test_add_new() -> Result<(), JasonError> {
 fn test_update() -> Result<(), JasonError> {
     let mut database: Database<Person, InMemory> = Database::new_in_memory()
         .with_index("name")?
-        .with_index("yearOfBirth")?;
+        .with_index("year_of_birth")?;
 
     let person_1 = Person::new("A", 2000);
     let person_2 = Person::new("B", 2000);
@@ -78,7 +78,7 @@ fn test_update() -> Result<(), JasonError> {
     let index_4 = *database.primary_indexes.get("d").unwrap();
 
     let name_index = database.secondary_indexes.get("name").unwrap();
-    let year_of_birth_index = database.secondary_indexes.get("yearOfBirth").unwrap();
+    let year_of_birth_index = database.secondary_indexes.get("year_of_birth").unwrap();
 
     let expected_name_index: HashMap<Value, Vec<u64>> = [
         (Value::String("A".to_string()), vec![index_1]),

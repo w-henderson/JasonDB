@@ -1,6 +1,6 @@
 [package]
 name = "jasondb"
-version = "0.2.5"
+version = "0.2.6"
 edition = "2021"
 license = "MIT"
 homepage = "https://github.com/w-henderson/JasonDB"
@@ -11,7 +11,7 @@ keywords = ["database", "json", "dbms"]
 categories = ["database", "database-implementations"]
 
 [dependencies]
-humphrey_json = "^0.1.1"
+humphrey_json = "^0.2.2"
 
 [lib]
 doctest = false

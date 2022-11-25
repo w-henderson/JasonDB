@@ -19,7 +19,7 @@ use std::vec::IntoIter;
 ///
 /// The type of values in the database is specified by the `T` generic parameter.
 /// This must implement Humphrey JSON's [`IntoJson`] and [`FromJson`] traits, which can be done
-///   with its [`json_map`] macro.
+///   with its derive macros or its [`json_map`] macro.
 /// These traits are automatically implemented for basic types like strings and numbers.
 ///
 /// ## Example
@@ -28,15 +28,10 @@ use std::vec::IntoIter;
 /// use jasondb::error::JasonError;
 /// use humphrey_json::prelude::*;
 ///
+/// #[derive(FromJson, IntoJson)]
 /// struct Person {
 ///     name: String,
 ///     age: u8,
-/// }
-///
-/// json_map! {
-///     Person,
-///     name => "name",
-///     age => "age"
 /// }
 ///
 /// fn main() -> Result<(), JasonError> {

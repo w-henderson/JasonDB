@@ -4,30 +4,17 @@ use crate::Database;
 
 use humphrey_json::prelude::*;
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(FromJson, IntoJson, Debug, PartialEq, Eq, Clone)]
 struct NullableType {
     field: String,
     nullable_field: Option<String>,
     nested_nullable_type: Option<NestedNullableType>,
 }
 
-#[derive(Debug, PartialEq, Eq, Clone)]
+#[derive(FromJson, IntoJson, Debug, PartialEq, Eq, Clone)]
 struct NestedNullableType {
     field: String,
     nullable_field: Option<String>,
-}
-
-json_map! {
-    NullableType,
-    field => "field",
-    nullable_field => "nullable_field",
-    nested_nullable_type => "nested_nullable_type"
-}
-
-json_map! {
-    NestedNullableType,
-    field => "field",
-    nullable_field => "nullable_field"
 }
 
 #[test]

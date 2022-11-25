@@ -62,22 +62,22 @@ fn index_on() -> Result<(), Box<dyn std::error::Error>> {
 
     let elizabeth_ii = database.write_entry(
         "elizabeth_ii",
-        json!({"name": "Elizabeth II", "yearOfBirth": 1926, "gender": "female"}).serialize(),
+        json!({"name": "Elizabeth II", "year_of_birth": 1926, "gender": "female"}).serialize(),
     )?;
 
     let george_vi = database.write_entry(
         "george_vi",
-        json!({"name": "George VI", "yearOfBirth": 1895, "gender": "male"}).serialize(),
+        json!({"name": "George VI", "year_of_birth": 1895, "gender": "male"}).serialize(),
     )?;
 
     let edward_viii = database.write_entry(
         "edward_viii",
-        json!({"name": "Edward VIII", "yearOfBirth": 1894, "gender": "male"}).serialize(),
+        json!({"name": "Edward VIII", "year_of_birth": 1894, "gender": "male"}).serialize(),
     )?;
 
     let indexes = database.load_indexes()?;
     let index_on_gender = database.index_on("gender", &indexes)?;
-    let index_on_year = database.index_on("yearOfBirth", &indexes)?;
+    let index_on_year = database.index_on("year_of_birth", &indexes)?;
 
     let men = index_on_gender.get(&json!("male")).unwrap();
     assert_eq!(men.len(), 2);

@@ -4,13 +4,13 @@ use crate::Database;
 
 use humphrey_json::prelude::*;
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(FromJson, IntoJson, Clone, Debug, PartialEq, Eq)]
 pub struct Person {
     pub(crate) name: String,
     pub(crate) year_of_birth: u16,
 }
 
-#[derive(Debug, PartialEq, Eq)]
+#[derive(FromJson, IntoJson, Debug, PartialEq, Eq)]
 pub struct AgedPerson {
     pub(crate) name: String,
     pub(crate) age: u16,
@@ -32,18 +32,6 @@ impl AgedPerson {
             age,
         }
     }
-}
-
-json_map! {
-    Person,
-    name => "name",
-    year_of_birth => "yearOfBirth"
-}
-
-json_map! {
-    AgedPerson,
-    name => "name",
-    age => "age"
 }
 
 pub fn composers_db<S>(source: S) -> Result<Database<Person, S>, JasonError>

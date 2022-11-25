@@ -62,10 +62,10 @@ fn delete() -> Result<(), JasonError> {
 #[test]
 fn optimised_query_1() -> Result<(), JasonError> {
     let source = InMemory::new();
-    let mut database = composers_db(source)?.with_index(field!(yearOfBirth))?;
+    let mut database = composers_db(source)?.with_index(field!(year_of_birth))?;
 
     // Get only 19th-century composers
-    let query = query!(yearOfBirth >= 1800) & query!(yearOfBirth < 1900);
+    let query = query!(year_of_birth >= 1800) & query!(year_of_birth < 1900);
 
     let composers: Vec<String> = query
         .execute_optimised(&mut database)?
@@ -86,10 +86,10 @@ fn optimised_query_2() -> Result<(), JasonError> {
     let source = InMemory::new();
     let mut database = composers_db(source)?
         .with_index(field!(name))?
-        .with_index(field!(yearOfBirth))?;
+        .with_index(field!(year_of_birth))?;
 
     // Get only 19th-century composers
-    let query = query!(yearOfBirth >= 1800) & query!(name == "Johannes Brahms");
+    let query = query!(year_of_birth >= 1800) & query!(name == "Johannes Brahms");
 
     let composers: Vec<String> = query
         .execute_optimised(&mut database)?
@@ -108,10 +108,10 @@ fn optimised_query_3() -> Result<(), JasonError> {
     let source = InMemory::new();
     let mut database = composers_db(source)?
         .with_index(field!(name))?
-        .with_index(field!(yearOfBirth))?;
+        .with_index(field!(year_of_birth))?;
 
     // Get only 19th-century composers
-    let query = query!(yearOfBirth >= 1900) | query!(name == "Johannes Brahms");
+    let query = query!(year_of_birth >= 1900) | query!(name == "Johannes Brahms");
 
     let composers: Vec<String> = query
         .execute_optimised(&mut database)?
@@ -129,10 +129,10 @@ fn optimised_query_3() -> Result<(), JasonError> {
 #[test]
 fn optimised_query_4() -> Result<(), JasonError> {
     let source = InMemory::new();
-    let mut database = composers_db(source)?.with_index(field!(yearOfBirth))?;
+    let mut database = composers_db(source)?.with_index(field!(year_of_birth))?;
 
     // Get only 19th-century composers
-    let query = query!(yearOfBirth >= 1800) & query!(name == "Johannes Brahms");
+    let query = query!(year_of_birth >= 1800) & query!(name == "Johannes Brahms");
 
     let composers: Vec<String> = query
         .execute_optimised(&mut database)?
@@ -152,7 +152,7 @@ fn unoptimised_query() -> Result<(), JasonError> {
     let mut database = composers_db(source)?;
 
     // Get only 19th-century composers
-    let query = query!(yearOfBirth >= 1800) & query!(yearOfBirth < 1900);
+    let query = query!(year_of_birth >= 1800) & query!(year_of_birth < 1900);
 
     let composers: Vec<String> = query
         .execute_unoptimised(&mut database)?
