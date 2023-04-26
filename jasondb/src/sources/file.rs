@@ -78,9 +78,7 @@ impl FileSource {
     pub fn into_memory(mut self) -> Result<InMemory, JasonError> {
         let mut buf: Vec<u8> = Vec::with_capacity(self.len as usize);
 
-        self.file
-            .seek(SeekFrom::Start(0))
-            .map_err(|_| JasonError::Io)?;
+        self.file.rewind().map_err(|_| JasonError::Io)?;
         self.file
             .read_to_end(&mut buf)
             .map_err(|_| JasonError::Io)?;
@@ -158,7 +156,7 @@ impl Source for FileSource {
             if v == b"null" {
                 indexes.remove(&key);
             } else {
-                indexes.insert(key, offset as u64);
+                indexes.insert(key, offset);
             }
 
             offset = new_offset;
