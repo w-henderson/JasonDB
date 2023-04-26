@@ -366,7 +366,7 @@ where
             indexes
                 .get_mut(&indexed_value)
                 .ok_or(JasonError::InvalidKey)?
-                .retain(|i| *i != index);
+                .remove(&index);
         }
 
         self.source.write_entry(key.as_ref(), "null")?;
