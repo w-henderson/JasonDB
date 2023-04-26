@@ -5,7 +5,7 @@ use crate::util::{indexing, quiet_assert};
 use humphrey_json::prelude::*;
 use humphrey_json::Value;
 
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 use std::io::Write;
 use std::path::Path;
 
@@ -93,8 +93,8 @@ impl Source for InMemory {
         &mut self,
         k: impl AsRef<str>,
         primary_indexes: &HashMap<String, u64>,
-    ) -> Result<HashMap<Value, Vec<u64>>, JasonError> {
-        let mut indexes: HashMap<Value, Vec<u64>> = HashMap::new();
+    ) -> Result<HashMap<Value, BTreeSet<u64>>, JasonError> {
+        let mut indexes: HashMap<Value, BTreeSet<u64>> = HashMap::new();
 
         for i in primary_indexes.values() {
             let (_, v) = self.read_entry(*i)?;
@@ -102,12 +102,10 @@ impl Source for InMemory {
             let value = Value::parse(json).map_err(|_| JasonError::JsonError)?;
             let indexed_value = indexing::get_value(k.as_ref(), &value);
 
-            indexes.entry(indexed_value).or_insert(vec![]).push(*i);
-        }
-
-        // We sort the indexes to optimise queries.
-        for vec in indexes.values_mut() {
-            vec.sort_unstable();
+            indexes
+                .entry(indexed_value)
+                .or_insert_with(BTreeSet::new)
+                .insert(*i);
         }
 
         Ok(indexes)

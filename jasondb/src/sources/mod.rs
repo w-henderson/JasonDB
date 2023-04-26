@@ -11,7 +11,7 @@ use crate::error::JasonError;
 use humphrey_json::prelude::*;
 use humphrey_json::Value;
 
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 
 /// Represents a backend source for the database.
 ///
@@ -33,7 +33,7 @@ pub trait Source {
         &mut self,
         k: impl AsRef<str>,
         indexes: &HashMap<String, u64>,
-    ) -> Result<HashMap<Value, Vec<u64>>, JasonError>;
+    ) -> Result<HashMap<Value, BTreeSet<u64>>, JasonError>;
 
     /// Compacts the database, removing all deleted entries to save space.
     fn compact(&mut self, indexes: &HashMap<String, u64>) -> Result<(), JasonError>;

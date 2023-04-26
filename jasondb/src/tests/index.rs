@@ -6,7 +6,7 @@ use crate::tests::mock::Person;
 
 use humphrey_json::Value;
 
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 
 #[test]
 fn test_add_new() -> Result<(), JasonError> {
@@ -32,18 +32,33 @@ fn test_add_new() -> Result<(), JasonError> {
     let name_index = database.secondary_indexes.get("name").unwrap();
     let year_of_birth_index = database.secondary_indexes.get("year_of_birth").unwrap();
 
-    let expected_name_index: HashMap<Value, Vec<u64>> = [
-        (Value::String("A".to_string()), vec![index_1]),
-        (Value::String("B".to_string()), vec![index_2]),
-        (Value::String("C".to_string()), vec![index_3]),
-        (Value::String("D".to_string()), vec![index_4]),
+    let expected_name_index: HashMap<Value, BTreeSet<u64>> = [
+        (
+            Value::String("A".to_string()),
+            [index_1].iter().cloned().collect(),
+        ),
+        (
+            Value::String("B".to_string()),
+            [index_2].iter().cloned().collect(),
+        ),
+        (
+            Value::String("C".to_string()),
+            [index_3].iter().cloned().collect(),
+        ),
+        (
+            Value::String("D".to_string()),
+            [index_4].iter().cloned().collect(),
+        ),
     ]
     .into();
 
-    let expected_year_of_birth_index: HashMap<Value, Vec<u64>> = [
-        (Value::Number(2000.0), vec![index_1, index_2]),
-        (Value::Number(2001.0), vec![index_3]),
-        (Value::Number(2002.0), vec![index_4]),
+    let expected_year_of_birth_index: HashMap<Value, BTreeSet<u64>> = [
+        (
+            Value::Number(2000.0),
+            [index_1, index_2].iter().cloned().collect(),
+        ),
+        (Value::Number(2001.0), [index_3].iter().cloned().collect()),
+        (Value::Number(2002.0), [index_4].iter().cloned().collect()),
     ]
     .into();
 
@@ -80,18 +95,33 @@ fn test_update() -> Result<(), JasonError> {
     let name_index = database.secondary_indexes.get("name").unwrap();
     let year_of_birth_index = database.secondary_indexes.get("year_of_birth").unwrap();
 
-    let expected_name_index: HashMap<Value, Vec<u64>> = [
-        (Value::String("A".to_string()), vec![index_1]),
-        (Value::String("B".to_string()), vec![index_2]),
-        (Value::String("C".to_string()), vec![index_3]),
-        (Value::String("D".to_string()), vec![index_4]),
+    let expected_name_index: HashMap<Value, BTreeSet<u64>> = [
+        (
+            Value::String("A".to_string()),
+            [index_1].iter().cloned().collect(),
+        ),
+        (
+            Value::String("B".to_string()),
+            [index_2].iter().cloned().collect(),
+        ),
+        (
+            Value::String("C".to_string()),
+            [index_3].iter().cloned().collect(),
+        ),
+        (
+            Value::String("D".to_string()),
+            [index_4].iter().cloned().collect(),
+        ),
     ]
     .into();
 
-    let expected_year_of_birth_index: HashMap<Value, Vec<u64>> = [
-        (Value::Number(2000.0), vec![index_2]),
-        (Value::Number(2001.0), vec![index_3, index_1]),
-        (Value::Number(2002.0), vec![index_4]),
+    let expected_year_of_birth_index: HashMap<Value, BTreeSet<u64>> = [
+        (Value::Number(2000.0), [index_2].iter().cloned().collect()),
+        (
+            Value::Number(2001.0),
+            [index_3, index_1].iter().cloned().collect(),
+        ),
+        (Value::Number(2002.0), [index_4].iter().cloned().collect()),
     ]
     .into();
 
