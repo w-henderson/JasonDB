@@ -86,10 +86,10 @@ fn index_on() -> Result<(), Box<dyn std::error::Error>> {
     assert!(!men.contains(&elizabeth_ii));
 
     let women = index_on_gender.get(&json!("female")).unwrap();
-    assert_eq!(*women, vec![elizabeth_ii]);
+    assert_eq!(*women, [elizabeth_ii].iter().cloned().collect());
 
-    let born_in_1895 = index_on_year.get(&json!(1895)).unwrap();
-    assert_eq!(*born_in_1895, vec![george_vi]);
+    let born_in_1895: &std::collections::BTreeSet<u64> = index_on_year.get(&json!(1895)).unwrap();
+    assert_eq!(*born_in_1895, [george_vi].iter().cloned().collect());
 
     let born_in_1900 = index_on_year.get(&json!(1900));
     assert!(born_in_1900.is_none());

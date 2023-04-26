@@ -10,7 +10,7 @@ use humphrey_json::prelude::*;
 use humphrey_json::Value;
 
 use std::borrow::Borrow;
-use std::collections::HashMap;
+use std::collections::{BTreeSet, HashMap};
 use std::marker::PhantomData;
 use std::path::Path;
 use std::vec::IntoIter;
@@ -59,7 +59,7 @@ where
     S: Source,
 {
     pub(crate) primary_indexes: HashMap<String, u64>,
-    pub(crate) secondary_indexes: HashMap<String, HashMap<Value, Vec<u64>>>,
+    pub(crate) secondary_indexes: HashMap<String, HashMap<Value, BTreeSet<u64>>>,
     pub(crate) source: S,
     pub(crate) replicas: Vec<Replicator<T>>,
     marker: PhantomData<T>,
@@ -300,31 +300,30 @@ where
             // Get the value used for the secondary index.
             let indexed_value = indexing::get_value(index_path, &value.borrow().to_json());
 
-            // Store whether the value has changed.
-            let changed_index_value = old_value
-                .as_ref()
-                .map(|v| v != &indexed_value)
-                .unwrap_or(false);
-            let vec = indexes.entry(indexed_value).or_insert_with(Vec::new);
+            let set = indexes
+                .entry(indexed_value.clone())
+                .or_insert_with(BTreeSet::new);
 
             // If the entire JSON value has changed but the secondary index value hasn't, remove the old index
             //   from the existing list.
             if let Some(old_index) = old_index {
-                vec.retain(|&i| i != old_index);
+                set.remove(&old_index);
             }
 
             // Add the new index to the list.
-            vec.push(index);
+            set.insert(index);
 
             // If the value has changed, check if the indexed value has also changed.
             if let Some(old_value) = &old_value {
                 let old_indexed_value = indexing::get_value(index_path, old_value);
 
-                if changed_index_value {
-                    let old_vec = indexes.entry(old_indexed_value).or_insert_with(Vec::new);
+                if old_indexed_value != indexed_value {
+                    let set = indexes
+                        .entry(old_indexed_value)
+                        .or_insert_with(BTreeSet::new);
 
                     // Remove the old index from the list.
-                    old_vec.retain(|&i| i != old_index.unwrap());
+                    set.remove(&old_index.unwrap());
                 }
             }
         }
@@ -367,7 +366,7 @@ where
             indexes
                 .get_mut(&indexed_value)
                 .ok_or(JasonError::InvalidKey)?
-                .retain(|i| *i != index);
+                .remove(&index);
         }
 
         self.source.write_entry(key.as_ref(), "null")?;

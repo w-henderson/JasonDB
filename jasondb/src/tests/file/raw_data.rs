@@ -3,7 +3,7 @@ use crate::sources::{FileSource, Source};
 use humphrey_json::prelude::*;
 
 use std::fs::{self, File};
-use std::io::{Read, Seek, SeekFrom, Write};
+use std::io::{Read, Seek, Write};
 
 #[test]
 fn read_write() {
@@ -59,7 +59,7 @@ fn compact() {
     database.compact(&indexes).unwrap();
 
     let mut buf: Vec<u8> = vec![0; database.len as usize];
-    database.file.seek(SeekFrom::Start(0)).unwrap();
+    database.file.rewind().unwrap();
     database.file.read_exact(&mut buf).unwrap();
     assert!(
         buf == b"\x04\0\0\0\0\0\0\0key2\x07\0\0\0\0\0\0\0value 2\x04\0\0\0\0\0\0\0key1\x0c\0\0\0\0\0\0\0overwritten!" ||
@@ -119,10 +119,10 @@ fn index_on() -> Result<(), Box<dyn std::error::Error>> {
     assert!(!men.contains(&elizabeth_ii));
 
     let women = index_on_gender.get(&json!("female")).unwrap();
-    assert_eq!(*women, vec![elizabeth_ii]);
+    assert_eq!(*women, [elizabeth_ii].iter().cloned().collect());
 
     let born_in_1895 = index_on_year.get(&json!(1895)).unwrap();
-    assert_eq!(*born_in_1895, vec![george_vi]);
+    assert_eq!(*born_in_1895, [george_vi].iter().cloned().collect());
 
     let born_in_1900 = index_on_year.get(&json!(1900));
     assert!(born_in_1900.is_none());
