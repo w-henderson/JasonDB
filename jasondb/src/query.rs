@@ -8,6 +8,7 @@ use crate::util::indexing;
 use humphrey_json::prelude::*;
 pub use humphrey_json::Value;
 
+use std::cmp::Ordering;
 use std::fmt::Debug;
 use std::ops::{BitAnd, BitOr};
 
@@ -120,45 +121,58 @@ impl Query {
 
             for (v, i) in index {
                 if predicate.matches_direct(v)? {
-                    indexes.extend(i.iter());
+                    indexes.push(i.iter().peekable());
                 }
             }
         }
-
-        let include: Box<dyn Fn(usize) -> bool> = match self.predicate_combination {
-            PredicateCombination::And => Box::new(|n: usize| n == optimisable_predicates.len()),
-            PredicateCombination::Or => Box::new(|n: usize| n > 0),
-        };
 
         let mut combined_indexes = Vec::new();
-        let mut count = 0;
-        let mut last = 1; // cannot be a real index so we're good
 
-        // We don't want an unstable sort because the regular one is quicker.
-        // This is because the concatenated indexes are already sorted so it's just sorting a list of sorted lists.
-        // (yes, this has been verified by benchmarks, it's ~2.5x faster)
-        #[allow(clippy::stable_sort_primitive)]
-        indexes.sort();
+        let mut min_iters = Vec::with_capacity(indexes.len());
 
-        // Use the number of matches found to determine which indexes meet the predicate combination requirements.
-        // If the number of matches is equal to the number of predicates, then the `And` combination is met.
-        // If the number of matches is greater than 0, then the `Or` combination is met.
-        // Otherwise, neither is met.
-        for index in indexes {
-            if last != index {
-                if include(count) {
-                    combined_indexes.push(last);
+        // Combine the iterators according to the predicate combination.
+        // This works by going through the iterators at the same time, and finding the smallest value.
+        // If the combination is `And` and all the iterators share the same value, then that value is added to the combined iterator.
+        // If the combination is `Or`, the value is simply added to the combined iterator.
+        loop {
+            let mut min = u64::MAX;
+
+            for (i, iter) in indexes.iter_mut().enumerate() {
+                if let Some(&&index) = iter.peek() {
+                    match index.cmp(&min) {
+                        Ordering::Less => {
+                            min = index;
+                            min_iters.clear();
+                            min_iters.push(i);
+                        }
+                        Ordering::Equal => {
+                            min_iters.push(i);
+                        }
+                        Ordering::Greater => {}
+                    }
                 }
-
-                last = index;
-                count = 1;
-            } else {
-                count += 1;
             }
-        }
 
-        if include(count) {
-            combined_indexes.push(last);
+            if min == u64::MAX {
+                break;
+            }
+
+            match self.predicate_combination {
+                PredicateCombination::And => {
+                    if min_iters.len() == optimisable_predicates.len() {
+                        combined_indexes.push(min);
+                    }
+                }
+                PredicateCombination::Or => {
+                    combined_indexes.push(min);
+                }
+            }
+
+            for i in &min_iters {
+                indexes[*i].next();
+            }
+
+            min_iters.clear();
         }
 
         if unoptimisable_predicates.is_empty() {
