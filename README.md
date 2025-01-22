@@ -11,7 +11,7 @@
   <img src="https://img.shields.io/badge/language-rust-b07858?style=for-the-badge&logo=rust" style="margin-right:5px">
   <img src="https://img.shields.io/github/actions/workflow/status/w-henderson/JasonDB/test.yml?style=for-the-badge" style="margin-right:5px">
   <img src="https://img.shields.io/badge/dependencies-0-brightgreen?style=for-the-badge" style="margin-right:5px">
-  <img src="https://img.shields.io/crates/v/jasondb?label=crates.io&style=for-the-badge" style="margin-right:5px"><br><br>
+  <a href="https://crates.io/crates/jasondb"><img src="https://img.shields.io/crates/v/jasondb?label=crates.io&style=for-the-badge" style="margin-right:5px"></a><br><br>
 </div>
 
 <hr><br>
